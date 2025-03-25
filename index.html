@@ -1102,7 +1102,7 @@ L.control.homeReset({ position: 'topleft' }).addTo(map);
     let activeMarkers = L.layerGroup().addTo(map);
     
     // Load CSV data
-    d3.csv("/data/map.csv").then(data => {
+    d3.csv("./data/map.csv").then(data => {
       mapCSVData = data;
       console.log("Loaded map CSV data:", mapCSVData);
     }).catch(error => {
