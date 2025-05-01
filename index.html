@@ -1452,7 +1452,7 @@ termSelect.addEventListener("change", function() {
 let professorData = [];
 const avgGpaMap = {};
 Promise.all([
-  d3.json('./data/professors.json'),
+  d3.json('./data/professors_min.json'),
   d3.csv('./data/professors_avg_gpa.csv')
 ]).then(([profData, gpaData]) => {
   professorData = profData;
