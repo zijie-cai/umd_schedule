@@ -1,0 +1,352 @@
+{
+    "SKN": {
+        "num_classes": 99,
+        "lat": 38.98480955,
+        "long": -76.94184133
+    },
+    "SYM": {
+        "num_classes": 50,
+        "lat": 38.9870811,
+        "long": -76.94064555
+    },
+    "SQH": {
+        "num_classes": 119,
+        "lat": 38.9820745,
+        "long": -76.94374974
+    },
+    "KEY": {
+        "num_classes": 228,
+        "lat": 38.98506175,
+        "long": -76.94308928
+    },
+    "JMZ": {
+        "num_classes": 333,
+        "lat": 38.9867867,
+        "long": -76.94455005
+    },
+    "ASY": {
+        "num_classes": 226,
+        "lat": 38.98528145,
+        "long": -76.94789478
+    },
+    "JMP": {
+        "num_classes": 102,
+        "lat": 38.9905177,
+        "long": -76.94029541
+    },
+    "TWS": {
+        "num_classes": 428,
+        "lat": 38.98598645,
+        "long": -76.94832385
+    },
+    "TLF": {
+        "num_classes": 65,
+        "lat": 38.98484635,
+        "long": -76.94309484
+    },
+    "BPS": {
+        "num_classes": 162,
+        "lat": 38.98872265,
+        "long": -76.94259293
+    },
+    "KNI": {
+        "num_classes": 99,
+        "lat": 38.98677255,
+        "long": -76.9484189
+    },
+    "TYD": {
+        "num_classes": 203,
+        "lat": 38.9848516,
+        "long": -76.94400077
+    },
+    "ATL": {
+        "num_classes": 193,
+        "lat": null,
+        "long": null
+    },
+    "TBA": {
+        "num_classes": 299,
+        "lat": null,
+        "long": null
+    },
+    "MMH": {
+        "num_classes": 60,
+        "lat": 38.9850013,
+        "long": -76.94075799
+    },
+    "PLS": {
+        "num_classes": 171,
+        "lat": 38.98873715,
+        "long": -76.94135962
+    },
+    "PHY": {
+        "num_classes": 300,
+        "lat": 38.9886972,
+        "long": -76.9400772
+    },
+    "ESJ": {
+        "num_classes": 433,
+        "lat": 38.986699,
+        "long": -76.941914
+    },
+    "HJP": {
+        "num_classes": 190,
+        "lat": 38.98708535,
+        "long": -76.9432766
+    },
+    "MTH": {
+        "num_classes": 83,
+        "lat": 38.98862265,
+        "long": -76.93906881
+    },
+    "ARC": {
+        "num_classes": 113,
+        "lat": 38.98423555,
+        "long": -76.94754622
+    },
+    "EGR": {
+        "num_classes": 203,
+        "lat": 38.9888688,
+        "long": -76.93797441
+    },
+    "ANS": {
+        "num_classes": 76,
+        "lat": 38.99164625,
+        "long": -76.93945928
+    },
+    "CCC": {
+        "num_classes": 83,
+        "lat": 38.99217805,
+        "long": -76.9429981
+    },
+    "TMH": {
+        "num_classes": 86,
+        "lat": 38.9852,
+        "long": -76.9387
+    },
+    "WDS": {
+        "num_classes": 47,
+        "lat": 38.9851106,
+        "long": -76.94184512
+    },
+    "MCB": {
+        "num_classes": 26,
+        "lat": 38.98811525,
+        "long": -76.94340344
+    },
+    "PAC": {
+        "num_classes": 243,
+        "lat": 38.9906807,
+        "long": -76.95044341
+    },
+    "QAN": {
+        "num_classes": 3,
+        "lat": 38.98519025,
+        "long": -76.94600685
+    },
+    "CHE": {
+        "num_classes": 93,
+        "lat": 38.99060895,
+        "long": -76.93953747
+    },
+    "ARM": {
+        "num_classes": 130,
+        "lat": 38.9860268,
+        "long": -76.93896621
+    },
+    "IRB": {
+        "num_classes": 144,
+        "lat": 38.98916071,
+        "long": -76.93644388
+    },
+    "AVW": {
+        "num_classes": 16,
+        "lat": 38.99079905,
+        "long": -76.93634186
+    },
+    "SPH": {
+        "num_classes": 209,
+        "lat": 38.9934922,
+        "long": -76.94316338
+    },
+    "CHM": {
+        "num_classes": 212,
+        "lat": 38.98959475,
+        "long": -76.94017172
+    },
+    "BLD4": {
+        "num_classes": 45,
+        "lat": null,
+        "long": null
+    },
+    "KEB": {
+        "num_classes": 53,
+        "lat": 38.9909099,
+        "long": -76.93802559
+    },
+    "CSI": {
+        "num_classes": 86,
+        "lat": 38.98999465,
+        "long": -76.9361946
+    },
+    "AJC": {
+        "num_classes": 50,
+        "lat": 38.9919651,
+        "long": -76.937262
+    },
+    "HBK": {
+        "num_classes": 92,
+        "lat": 38.9881767,
+        "long": -76.94157409
+    },
+    "IPT": {
+        "num_classes": 5,
+        "lat": 38.9908276,
+        "long": -76.94128295
+    },
+    "BRB": {
+        "num_classes": 105,
+        "lat": 38.98897595,
+        "long": -76.94280941
+    },
+    "VMH": {
+        "num_classes": 326,
+        "lat": 38.9830467,
+        "long": -76.94703829
+    },
+    "BLD2": {
+        "num_classes": 8,
+        "lat": null,
+        "long": null
+    },
+    "BLD3": {
+        "num_classes": 6,
+        "lat": null,
+        "long": null
+    },
+    "BA": {
+        "num_classes": 6,
+        "lat": null,
+        "long": null
+    },
+    "DC": {
+        "num_classes": 9,
+        "lat": null,
+        "long": null
+    },
+    "LEF": {
+        "num_classes": 161,
+        "lat": 38.9836849,
+        "long": -76.94363479
+    },
+    "EDU": {
+        "num_classes": 128,
+        "lat": 38.9867095,
+        "long": -76.9474215
+    },
+    "SOM": {
+        "num_classes": 2,
+        "lat": 38.9850026,
+        "long": -76.9455473
+    },
+    "SHM": {
+        "num_classes": 30,
+        "lat": 38.9839376,
+        "long": -76.9427455
+    },
+    "CBD": {
+        "num_classes": 2,
+        "lat": 38.9922614,
+        "long": -76.94392441
+    },
+    "PKT": {
+        "num_classes": 3,
+        "lat": 38.9844511,
+        "long": -76.94613207
+    },
+    "SEN": {
+        "num_classes": 1,
+        "lat": null,
+        "long": null
+    },
+    "EGL": {
+        "num_classes": 6,
+        "lat": 38.98926235,
+        "long": -76.93794671
+    },
+    "GEO": {
+        "num_classes": 7,
+        "lat": 38.9881304,
+        "long": -76.94090996
+    },
+    "PFR": {
+        "num_classes": 18,
+        "lat": null,
+        "long": null
+    },
+    "ERC": {
+        "num_classes": 4,
+        "lat": null,
+        "long": null
+    },
+    "DOR": {
+        "num_classes": 4,
+        "lat": 38.9867742,
+        "long": -76.9461812
+    },
+    "ANA": {
+        "num_classes": 3,
+        "lat": 38.98595025,
+        "long": -76.94673185
+    },
+    "LPA": {
+        "num_classes": 5,
+        "lat": 38.9924497,
+        "long": -76.94589071
+    },
+    "YDH": {
+        "num_classes": 36,
+        "lat": null,
+        "long": null
+    },
+    "JUL": {
+        "num_classes": 2,
+        "lat": 38.99087705,
+        "long": -76.9435848
+    },
+    "GLF": {
+        "num_classes": 2,
+        "lat": 38.99113325,
+        "long": -76.95470708
+    },
+    "MCK": {
+        "num_classes": 1,
+        "lat": 38.98598155,
+        "long": -76.94510047
+    },
+    "CEN": {
+        "num_classes": 4,
+        "lat": 38.992271,
+        "long": -76.9421249
+    },
+    "COL": {
+        "num_classes": 1,
+        "lat": 38.98797155,
+        "long": -76.94676626
+    },
+    "PSC": {
+        "num_classes": 3,
+        "lat": null,
+        "long": null
+    },
+    "STM": {
+        "num_classes": 11,
+        "lat": 38.9870071,
+        "long": -76.94559837
+    },
+    "GVC": {
+        "num_classes": 2,
+        "lat": null,
+        "long": null
+    }
+}
