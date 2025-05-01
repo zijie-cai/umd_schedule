@@ -700,6 +700,10 @@
       background: #e21833;
       color: #fff;
     }
+    /* Style for the heatmap button when active */
+    .heatmap-active {
+        background-color: #ddd !important; /* Example active background */
+    }
   </style>
 </head>
 <body>
@@ -869,6 +873,10 @@
     // Global variable for the route polyline.
     let routePolyline = null;
     
+    // Add variables for heatmap
+    let heatmapLayer = null;
+    let buildingCountsData = null;
+    let heatmapActive = false; // State flag for heatmap
 
     // Instead of clearing activeRouteInput on blur, we only set it on focus.
     const startLocationInput = document.getElementById('startLocation');
@@ -1218,6 +1226,20 @@ function highlightNearestRouteTo(latlng) {
     // Set initial opacity
     busToggleButton.style.opacity = window.showBusStops ? '1.0' : '0.6';
 
+
+    // Heatmap toggle button (newly added below home)
+    var heatmapButton = L.DomUtil.create('a', '', container);
+    heatmapButton.innerHTML = '<i class="fas fa-fire"></i>'; // Fire icon for heatmap
+    heatmapButton.title = "Toggle Building Class Heatmap";
+    heatmapButton.href = "#";
+    heatmapButton.id = "heatmapToggleBtn"; // Add an ID for easy selection
+    L.DomEvent.on(heatmapButton, 'click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        toggleHeatmap(); // Call the function to toggle heatmap
+        this.blur();
+    });
+
     return container;
   },
   onRemove: function(map) {
@@ -1423,16 +1445,156 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
     loadCourses(termSelect.value);
     
     let selectedCourse = "";
-termSelect.addEventListener("change", function() {
-  loadCourses(this.value);
-  // Reset the course search when semester changes
-  searchBar.value = "";
-  suggestionsDiv.style("display", "none");
-  sectionSelect.innerHTML = '<option value="">Section</option>';
-  selectedCourse = "";
-  removePreviewBlocks();
-  activeMarkers.clearLayers();
-});
+    termSelect.addEventListener("change", function() {
+      loadDataForTerm(this.value);
+      // Reset the course search when semester changes
+      searchBar.value = "";
+      suggestionsDiv.style("display", "none");
+      sectionSelect.innerHTML = '<option value="">Section</option>';
+      selectedCourse = "";
+      removePreviewBlocks();
+      activeMarkers.clearLayers();
+    });
+
+        // Load courses JSON and Building Counts JSON
+        function loadDataForTerm(term) {
+      const coursesFile = term === "Spring 2025" ? "./data/courses_spring.json" : "./data/courses_fall.json";
+      const buildingCountsFile = term === "Spring 2025" ? "./data/building_class_counts_spring.json" : "./data/building_class_counts_fall.json";
+
+      // Load courses
+      d3.json(coursesFile).then(data => {
+        coursesData = data;
+        console.log("Loaded coursesData for", term, coursesData);
+      }).catch(error => {
+        console.error("Error loading courses JSON:", error);
+      });
+
+      // Load building counts
+      d3.json(buildingCountsFile).then(data => {
+        buildingCountsData = data;
+        console.log("Loaded buildingCountsData for", term, buildingCountsData);
+        // If heatmap is currently active, redraw it with new data
+        if (heatmapActive) {
+          createHeatmap(); 
+        }
+      }).catch(error => {
+        console.error("Error loading building counts JSON:", error);
+        buildingCountsData = null; // Reset data on error
+        // If heatmap is active, remove it as data failed to load
+        if (heatmapActive) {
+            removeHeatmap();
+        }
+      });
+    }
+
+    // Initial data load based on default selected term
+    loadDataForTerm(termSelect.value);
+    
+    termSelect.addEventListener("change", function() {
+      // Load data for the newly selected term
+      loadDataForTerm(this.value);
+      // Reset course/section selection UI
+      sectionSelect.innerHTML = '<option value="">Section</option>';
+      searchBar.value = ''; // Clear search bar
+      removePreviewBlocks(); // Clear any schedule previews
+      activeMarkers.clearLayers(); // Clear any preview markers
+    });
+    
+    // --- HEATMAP FUNCTIONS ---
+    function removeHeatmap() {
+        if (heatmapLayer) {
+            map.removeLayer(heatmapLayer);
+            heatmapLayer = null;
+        }
+        heatmapActive = false;
+        // Remove active class from button
+        document.getElementById('heatmapToggleBtn')?.classList.remove('heatmap-active');
+        console.log("Heatmap removed.");
+    }
+
+    function createHeatmap() {
+        removeHeatmap(); // Clear existing heatmap first
+
+        if (!buildingCountsData) {
+            console.error("Building counts data not loaded.");
+            alert("Could not load building data for heatmap.");
+            return;
+        }
+
+        heatmapLayer = L.layerGroup();
+
+        const counts = Object.values(buildingCountsData)
+                             .map(d => d.num_classes)
+                             .filter(count => count !== null && count > 0);
+        
+        if (counts.length === 0) {
+            console.log("No building data with class counts found.");
+            return; // No data to show
+        }
+
+        const minCount = Math.min(...counts);
+        const maxCount = Math.max(...counts);
+
+        // Color scale: Yellow -> Orange -> Red
+        const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
+                             .domain([minCount, maxCount]);
+
+        for (const buildingCode in buildingCountsData) {
+            const data = buildingCountsData[buildingCode];
+            if (data.lat !== null && data.long !== null && data.num_classes > 0) {
+                const lat = parseFloat(data.lat);
+                const long = parseFloat(data.long);
+                const numClasses = data.num_classes;
+
+                if (!isNaN(lat) && !isNaN(long)) {
+                    const color = colorScale(numClasses);
+                    const radius = 40; // Fixed radius for simplicity, could scale with numClasses
+
+                    const circle = L.circle([lat, long], {
+                        radius: radius,
+                        color: 'black', // Border color
+                        weight: 1,       // Border weight
+                        fillColor: color,
+                        fillOpacity: 0.7
+                    }).bindPopup(`<b>${buildingCode}</b><br>${numClasses} classes`);
+                    
+                    heatmapLayer.addLayer(circle);
+                }
+            }
+        }
+
+        heatmapLayer.addTo(map);
+        heatmapActive = true;
+        // Add active class to button
+        document.getElementById('heatmapToggleBtn')?.classList.add('heatmap-active');
+        console.log("Heatmap created and added.");
+    }
+
+    function toggleHeatmap() {
+        if (heatmapActive) {
+            removeHeatmap();
+        } else {
+            // If data isn't loaded yet, try loading it first
+            if (!buildingCountsData) {
+                console.log("Building data not yet loaded, attempting to load for term:", termSelect.value);
+                // Trigger data load which will call createHeatmap if successful and heatmapActive is true
+                 d3.json(termSelect.value === "Spring 2025" ? "./data/building_class_counts_spring.json" : "./data/building_class_counts_fall.json").then(data => {
+                    buildingCountsData = data;
+                    console.log("Loaded buildingCountsData for", termSelect.value, buildingCountsData);
+                    createHeatmap(); // Now create the heatmap
+                }).catch(error => {
+                    console.error("Error loading building counts JSON:", error);
+                    buildingCountsData = null;
+                    alert("Failed to load heatmap data.");
+                });
+            } else {
+                 createHeatmap(); // Data already loaded, just create heatmap
+            }
+        }
+    }
+
+    // --- END HEATMAP FUNCTIONS ---
+
     
     // When the search bar input becomes invalid, reset section, remove schedule preview blocks and clear preview markers.
     searchBar.addEventListener("input", function() {
