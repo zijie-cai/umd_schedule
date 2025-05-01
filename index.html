@@ -198,6 +198,7 @@
     }
     .section-select {
       margin: 0 10px;
+      width: 120px;
     }
     .input-wrapper {
       position: relative;
@@ -263,8 +264,8 @@
     /* Saved Courses container styling */
     #savedCourses {
       position: absolute;
-      top: 130px;
-      right: -220px;
+      top: -10px;
+      left: -220px;
       width: 200px;
       max-height: 420px;
       overflow-y: auto;
@@ -286,7 +287,7 @@
     /* Weekly Schedule container styling */
     #scheduleContainer {
       position: absolute;
-      top: 130px;
+      top: 220px;
       left: -300px;
       width: 320px;
       height: 400px;
@@ -525,8 +526,8 @@
     #routeContainer {
       display: none; 
       position: absolute; 
-      top: 330px; 
-      right: -300px; 
+      top: -20px; 
+      right: -270px; 
       width: 300px; 
       padding: 10px; 
       border: 1px solid #7f7f7f; 
@@ -623,22 +624,22 @@
     }
 
     /* Bus Routes container styling (same as Saved Courses) */
-#busRoutesContainer {
-  position: absolute;
-  top: 130px;
-  right: -220px;
-  width: 200px;
-  max-height: 420px;
-  overflow-y: hidden;
-  border: 1px solid #7f7f7f;
-  border-radius: 4px;
-  background: #fff;
-  padding: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  cursor: move;
-  z-index: 10000;
-  display: none;
-}
+    #busRoutesContainer {
+      position: absolute;
+      top: 195px;
+      right: -250px;
+      width: 200px;
+      max-height: 420px;
+      overflow-y: hidden;
+      border: 1px solid #7f7f7f;
+      border-radius: 4px;
+      background: #fff;
+      padding: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: move;
+      z-index: 10000;
+      display: none;
+    }
 
 /* Title styling: same as Saved Courses */
 #busRoutesContainer h3 {
@@ -647,7 +648,58 @@
   color: #e21833;
   text-align: center;
 }
-  
+  /* Prerequisite network chart styling */
+    #chart {
+      display: block;
+      width: 100%;
+      max-width: 800px;
+      height: calc(100vh - 150px);
+      margin: 10px auto 20px auto;
+    }
+    /* Professor comparison chart styling */
+    #profChart {
+      display: block;
+      width: 100%;
+      max-width: 800px;
+      height: calc(100vh - 150px);
+      margin: 10px auto 20px auto;
+    }
+    .node {
+      stroke: #fff;
+      stroke-width: 1.5px;
+    }
+    .link {
+      stroke: #999;
+      stroke-opacity: 0.6;
+    }
+
+    /* Title above the prerequisite network chart */
+    .chart-title {
+      text-align: center;
+      font-size: 1.0em;
+      margin-top: 5px;
+      color: #e21833; /* UMD red for consistency */
+    }
+
+    /* Visualization toggle styling */
+    .vis-toggle {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .toggle-btn {
+      padding: 8px 16px;
+      margin: 0 5px;
+      font-size: 1em;
+      border: 1px solid #e21833;
+      background: #fff;
+      color: #e21833;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .toggle-btn.selected {
+      background: #e21833;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -690,6 +742,26 @@
 
     <div class="results" id="resultsContainer"></div>
     <div id="map"></div>
+    <!-- Visualization Toggle -->
+    <div class="vis-toggle">
+      <button id="prereqToggle" class="toggle-btn selected">Prerequisite Network</button>
+      <button id="profToggle" class="toggle-btn">Professor Comparison</button>
+    </div>
+
+    <!-- Prerequisite Network Container -->
+    <div id="chartContainer">
+      <h2 class="chart-title">Prerequisites Network</h2>
+      <svg id="chart" width="800" height="600"></svg>
+    </div>
+
+    <!-- Professor Comparison Container -->
+    <div id="profComparisonContainer" style="display:none;">
+      <h2 class="chart-title">Professor Comparison</h2>
+      <div id="profChart"></div>
+    </div>
+    <!-- Prerequisite network visualization -->
+    <!-- <h2 class="chart-title">Prerequisites Network</h2>
+    <svg id="chart" width="800" height="600"></svg> -->
 
     <!-- Saved Courses container -->
     <div id="savedCourses">
@@ -743,7 +815,7 @@
     
     <!-- Bus Routes container -->
     <!-- Bus Routes container -->
-<div id="busRoutesContainer" style="position: absolute; top: 130px; right: -220px; width: 250px; max-height: 450px; overflow-y: auto; border: 1px solid #7f7f7f; border-radius: 4px; background: #fff; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: move; z-index: 1000; display: none; text-align: center;">
+<div id="busRoutesContainer" style="position: absolute; top: 195px; right: -250px; width: 250px; max-height: 450px; overflow-y: auto; border: 1px solid #7f7f7f; border-radius: 4px; background: #fff; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: move; z-index: 1000; display: none; text-align: center;">
   <div class="close-btn" id="closeBusRoutes">–</div>
   <h3>Bus Routes</h3>
   <!-- Buttons for Hide All and Show All -->
@@ -825,15 +897,14 @@
       }
     });
 
-    // Function to handle marker click when a route input is active.
-    function markerRouteSelectHandler(e) {
+function markerRouteSelectHandler(e) {
   // Prevent the document click handler from clearing the active input
   e.originalEvent.stopPropagation();
-  
-  // If no active input, automatically select the first empty destination input
+
+  // If no input is currently highlighted, fallback to the first empty route input (start or any destination)
   if (!activeRouteInput) {
-    const destinationInputs = document.querySelectorAll('#routeContainer .destination-input');
-    for (let input of destinationInputs) {
+    const routeInputs = document.querySelectorAll('#routeContainer .route-inputs input');
+    for (let input of routeInputs) {
       if (input.value.trim() === "") {
         activeRouteInput = input;
         input.classList.add('active-route-input');
@@ -841,14 +912,60 @@
       }
     }
   }
-  
-  // If an active input is set, fill it with the marker's coordinates
-  if (activeRouteInput) {
-    const latlng = e.latlng;
-    activeRouteInput.value = latlng.lat.toFixed(6) + ", " + latlng.lng.toFixed(6);
-    activeRouteInput.classList.remove('active-route-input');
-    activeRouteInput = null;
-  }
+
+  // If still no active input, do nothing
+  if (!activeRouteInput) return;
+
+  // Fill the active input with the clicked marker's coordinates
+  const latlng = e.latlng;
+  activeRouteInput.value = latlng.lat.toFixed(6) + ", " + latlng.lng.toFixed(6);
+  activeRouteInput.classList.remove('active-route-input');
+  activeRouteInput = null;
+}
+
+function highlightNearestRouteTo(latlng) {
+  // Compute distances from click to every bus stop marker
+  const distances = [];
+  Object.keys(busStopMarkers).forEach(routeId => {
+    busStopMarkers[routeId].forEach(marker => {
+      distances.push({
+        routeId,
+        marker,
+        dist: haversineDistance(latlng, marker.getLatLng())
+      });
+    });
+  });
+  if (distances.length === 0) return;
+  // Sort by distance
+  distances.sort((a, b) => a.dist - b.dist);
+  const bestDist = distances[0].dist;
+  const threshold = 0.05; // ~50 meters
+  // Include all stops within bestDist + threshold
+  const closeStops = distances.filter(d => d.dist <= bestDist + threshold);
+  // Clear existing routes and stops from map
+  Object.values(busRoutesLayers).flat().forEach(line => map.removeLayer(line));
+  Object.values(busStopMarkers).flat().forEach(m => map.removeLayer(m));
+  // Determine unique routes to show
+  const routesToShow = [...new Set(closeStops.map(d => d.routeId))];
+  // Add each route polyline and its stops back to the map
+  routesToShow.forEach(routeId => {
+    busRoutesLayers[routeId].forEach(line => line.addTo(map));
+    (busStopMarkers[routeId] || []).forEach(m => m.addTo(map));
+  });
+  // Open popups for all nearby stops
+  closeStops.forEach(d => d.marker.openPopup());
+  // Sync the checkboxes:
+  Object.keys(busRoutesLayers).forEach(id => {
+    const isVisible = routesToShow.includes(id);
+    busRoutesState[id] = isVisible;  // keep your state object up to date
+    const cb = document.querySelector(
+      `#busRoutesList input[data-route-id="${id}"]`
+    );
+    if (cb) cb.checked = isVisible;
+  });
+  // Show the bus routes and route planner panels when a marker is clicked
+  document.getElementById('busRoutesContainer').style.display = 'block';
+  document.getElementById('routeContainer').style.display = 'block';
 }
     
     // Helper function: Calculate the Haversine distance between two coordinates.
@@ -901,6 +1018,8 @@
     
     let coursesData = [];
     let currentSections = [];
+    // after “let currentSections = [];”
+    let currentInstructors = [];
     let mapCSVData = [];
     
     // Global array to store custom timed entries
@@ -972,16 +1091,21 @@
             map.removeLayer(window.currentLocationMarker);
           }
           window.currentLocationMarker = L.marker([lat, lon], {
-  icon: L.divIcon({
-    className: '',
-    html: '<div class="custom-marker" style="--default-border: #3caea3;"><i class="fa-solid fa-user"></i></div>',
-    iconSize: [40, 52],
-    iconAnchor: [20, 52],
-    popupAnchor: [0, -52]
-  })
-}).addTo(map)
-  .on('click', markerRouteSelectHandler)
-  .bindPopup("Your Location").openPopup();
+            icon: L.divIcon({
+              className: '',
+              html: '<div class="custom-marker" style="--default-border: #3caea3;"><i class="fa-solid fa-user"></i></div>',
+              iconSize: [40, 52],
+              iconAnchor: [20, 52],
+              popupAnchor: [0, -52]
+            })
+          });
+          window.currentLocationMarker.bindPopup("Your Location");
+          window.currentLocationMarker.addTo(map).openPopup();
+          window.currentLocationMarker.on('click', function(e) {
+            markerRouteSelectHandler(e);
+            highlightNearestRouteTo(e.latlng);
+            this.openPopup();
+          });
           map.setView([lat, lon], 15);
         }, function(error) {
           alert("Unable to retrieve your location.");
@@ -1043,16 +1167,21 @@
             map.removeLayer(window.homeMarker);
           }
           window.homeMarker = L.marker([lat, lon], {
-  icon: L.divIcon({
-    className: '',
-    html: '<div class="custom-marker" style="--default-border: #ad7231;"><i class="fas fa-home"></i></div>',
-    iconSize: [40, 52],
-    iconAnchor: [20, 52],
-    popupAnchor: [0, -52]
-  })
-}).addTo(map)
-  .on('click', markerRouteSelectHandler)
-  .bindPopup("Home Address").openPopup();
+            icon: L.divIcon({
+              className: '',
+              html: '<div class="custom-marker" style="--default-border: #ad7231;"><i class="fas fa-home"></i></div>',
+              iconSize: [40, 52],
+              iconAnchor: [20, 52],
+              popupAnchor: [0, -52]
+            })
+          });
+          window.homeMarker.bindPopup("Home Address");
+          window.homeMarker.addTo(map).openPopup();
+          window.homeMarker.on('click', function(e) {
+            markerRouteSelectHandler(e);
+            highlightNearestRouteTo(e.latlng);
+            this.openPopup();
+          });
           map.panTo([lat, lon]);
         } else {
           alert("Address not found!");
@@ -1095,7 +1224,11 @@ L.control.homeReset({ position: 'topleft' }).addTo(map);
       })
     }).addTo(map)
       .bindPopup('University of Maryland, College Park')
-      .on('click', markerRouteSelectHandler);
+      .on('click', function(e) {
+        markerRouteSelectHandler(e);
+        highlightNearestRouteTo(e.latlng);
+        this.openPopup();
+      });
     window.campusMarker.openPopup();
     
     let savedMarkers = L.layerGroup().addTo(map);
@@ -1147,6 +1280,10 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
   busRouteColorScale = d3.scaleOrdinal()
       .domain(uniqueRouteIds)
       .range(d3.quantize(d3.interpolateRainbow, 26));
+
+  uniqueRouteIds.forEach(id => {
+    busRoutesState[id] = false;
+  });
   
   // Process each bus route: draw the polyline and then place stop markers.
   busRoutesDetailsData.forEach(function(row) {
@@ -1164,7 +1301,6 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
                 .filter(pair => !isNaN(pair[0]) && !isNaN(pair[1]));
               if (latlngs.length > 0) {
                 let polyline = L.polyline(latlngs, { color: busRouteColorScale(row.route_id), weight: 4, opacity: 0.9 });
-                polyline.addTo(map);
                 busRoutesLayers[row.route_id].push(polyline);
               } else {
                 console.warn('No valid coordinates in segment for route:', row.route_id);
@@ -1212,9 +1348,14 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
           // Create and add the marker:
           const marker = L.marker([stopDetail.lat, stopDetail.lng], { icon: busStopIcon })
             .bindPopup(`<strong>Stop:</strong> ${stopDetail.stop_name || stop_id}<br/><strong>Route:</strong> ${row.route_id}`);
-          marker.addTo(map);
           
-          // <-- Add the following snippet here:
+
+          // Only open the popup when a bus stop marker is clicked
+          marker.on('click', function(e) {
+            markerRouteSelectHandler(e);
+            this.openPopup();
+          });
+
           if (!busStopMarkers[row.route_id]) {
             busStopMarkers[row.route_id] = [];
           }
@@ -1253,11 +1394,16 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
     loadCourses(termSelect.value);
     
     let selectedCourse = "";
-    termSelect.addEventListener("change", function() {
-      loadCourses(this.value);
-      sectionSelect.innerHTML = '<option value="">Section</option>';
-      selectedCourse = "";
-    });
+termSelect.addEventListener("change", function() {
+  loadCourses(this.value);
+  // Reset the course search when semester changes
+  searchBar.value = "";
+  suggestionsDiv.style("display", "none");
+  sectionSelect.innerHTML = '<option value="">Section</option>';
+  selectedCourse = "";
+  removePreviewBlocks();
+  activeMarkers.clearLayers();
+});
     
     // When the search bar input becomes invalid, reset section, remove schedule preview blocks and clear preview markers.
     searchBar.addEventListener("input", function() {
@@ -1274,29 +1420,100 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
         activeMarkers.clearLayers(); // Clear preview markers from map
       }
     });
-    
-    function loadSections(courseId) {
-      const semester = termSelect.value === "Spring 2025" ? "202501" : "202508";
-      const url = `https://api.umd.io/v1/courses/${courseId}/sections?semester=${semester}`;
-      d3.json(url).then(data => {
-        data.sort((a, b) => {
-          let aPart = a.section_id.split('-')[1] || a.section_id;
-          let bPart = b.section_id.split('-')[1] || b.section_id;
-          return parseInt(aPart) - parseInt(bPart);
-        });
-        currentSections = data;
-        sectionSelect.innerHTML = '<option value="">Section</option>';
-        data.forEach(section => {
-          const option = document.createElement("option");
-          option.value = section.section_id;
-          option.textContent = section.section_id.includes('-') ? section.section_id.split('-')[1] : section.section_id;
-          sectionSelect.appendChild(option);
-        });
-        console.log("Loaded and sorted sections for course", courseId, data);
-      }).catch(error => {
-        console.error("Error loading sections:", error);
-      });
+let professorData = [];
+const avgGpaMap = {};
+Promise.all([
+  d3.json('./data/professors.json'),
+  d3.csv('./data/professors_avg_gpa.csv')
+]).then(([profData, gpaData]) => {
+  professorData = profData;
+  gpaData.forEach(row => {
+    const profName = row.name || row.Name || row.professor || row.Professor;
+    // Support different possible GPA column headers
+    const gpaValue = row.avg_gpa != null
+      ? +row.avg_gpa
+      : (row.AVG_GPA != null
+         ? +row.AVG_GPA
+         : (row.Avg_gpa != null
+            ? +row.Avg_gpa
+            : NaN));
+    if (profName) {
+      avgGpaMap[profName] = isNaN(gpaValue) ? 0 : gpaValue;
     }
+  });
+  // Build total grades map and compute max for opacity scaling
+  const totalGradesMap = {};
+  gpaData.forEach(row => {
+    const profName = row.name || row.Name || row.professor || row.Professor;
+    const total = row.total_grades != null ? +row.total_grades : 0;
+    if (profName) totalGradesMap[profName] = total;
+  });
+  // Expose globally for use in rendering
+  window.totalGradesMap = totalGradesMap;
+  window.maxTotalGrades = d3.max(Object.values(totalGradesMap)) || 0;
+  console.log("avgGpaMap:", avgGpaMap);
+  // Now that both data sets are loaded, render the comparison
+  renderProfComparison(currentInstructors);
+}).catch(err => console.error("Error loading professor data:", err));
+    function loadSections(courseId) {
+  const semester = termSelect.value === "Spring 2025" ? "202501" : "202508";
+  const url = `https://api.umd.io/v1/courses/${courseId}/sections?semester=${semester}`;
+
+  d3.json(url).then(sections => {
+    // 1. For each section, build instructor list and lookup their ratings
+    sections.forEach(sec => {
+      sec.profList = sec.instructors.length
+        ? sec.instructors.join(', ')
+        : 'TBA';
+
+      // collect each prof’s average_rating (0 if unknown)
+      const ratings = sec.instructors.map(name => {
+        const prof = professorData.find(p => p.name === name);
+        return prof ? +prof.average_rating : 0;
+      });
+      // average (or 0 if none)
+      sec.sectionRating = ratings.length
+        ? d3.mean(ratings)
+        : 0;
+    });
+
+    // 2. Sort descending by rating, then ascending by section number
+    sections.sort((a, b) => {
+      if (b.sectionRating !== a.sectionRating) {
+        return b.sectionRating - a.sectionRating;
+      }
+      // fallback to numeric sort on the 4-digit part of “ENGL101-0201”
+      const getNum = s => +(s.section_id.split('-')[1] || 0);
+      return getNum(a) - getNum(b);
+    });
+
+    // 3. Populate the <select>
+    sectionSelect.innerHTML = '<option value="">Section</option>';
+    sections.forEach(sec => {
+      const label = sec.section_id.includes('-')
+        ? sec.section_id.split('-')[1]
+        : sec.section_id;
+
+      const opt = document.createElement('option');
+      opt.value = sec.section_id;
+      // e.g. “0201 ⭐4.8”
+      const stars = sec.sectionRating
+        ? `⭐${sec.sectionRating.toFixed(1)}`
+        : '';
+      opt.textContent = `${label} ${stars}`;
+      sectionSelect.appendChild(opt);
+    });
+
+    currentSections = sections;
+    // Build distinct instructor list for the selected course
+    currentInstructors = Array.from(
+      new Set(sections.flatMap(s => s.instructors))
+    );
+    // Pre-render professor comparison data for the course
+    renderProfComparison(currentInstructors);
+  })
+  .catch(err => console.error("Error loading sections:", err));
+}
     
     // Helper: Parse days string into an array of day tokens.
     function parseDays(daysStr) {
@@ -1442,6 +1659,7 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
                                   selectedCourse = d.course_id;
                                   suggestionsDiv.style("display", "none");
                                   loadSections(d.course_id);
+                          
                                 });
           items.merge(newItems)
                .text(d => `${d.course_id} - ${d.name}`);
@@ -1478,6 +1696,8 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
                                 selectedCourse = d.course_id;
                                 suggestionsDiv.style("display", "none");
                                 loadSections(d.course_id);
+                                renderTree(d.course_id);
+                                renderProfComparison(currentInstructors);
                               });
         items.merge(newItems)
              .text(d => `${d.course_id} - ${d.name}`);
@@ -1495,59 +1715,65 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
     });
     
     // When a section is selected, update active markers and show a preview schedule block.
-    sectionSelect.addEventListener("change", () => {
-      activeMarkers.clearLayers();
-      const sectionId = sectionSelect.value;
-      if (sectionId) {
-        const sectionObj = currentSections.find(s => s.section_id === sectionId);
-        if (sectionObj && sectionObj.meetings && sectionObj.meetings.length > 0) {
-          const currentCourseId = searchBar.value.trim();
-          const courseIcon = getCourseIcon(currentCourseId);
-          const meetingsByBuilding = {};
-          sectionObj.meetings.forEach(meeting => {
-            if (!meetingsByBuilding[meeting.building]) {
-              meetingsByBuilding[meeting.building] = [];
-            }
-            meetingsByBuilding[meeting.building].push(meeting);
-          });
-          Object.keys(meetingsByBuilding).forEach(buildingCode => {
-            const meetings = meetingsByBuilding[buildingCode];
-            const buildingRow = mapCSVData.find(b => b.code === buildingCode);
-            if (buildingRow) {
-              const baseLat = parseFloat(buildingRow.lat);
-              const baseLng = parseFloat(buildingRow.long);
-              meetings.forEach((meeting, index) => {
-                let markerLat = baseLat;
-                let markerLng = baseLng;
-                if (meetings.length > 1) {
-                  const offset = 0.00005 * (index - (meetings.length - 1) / 2);
-                  markerLng = baseLng + offset;
-                }
-                const popupContent = `
-                  <strong>${meeting.classtype.trim() === "" ? "Lecture" : meeting.classtype}</strong><br>
-                  <em>Days:</em> ${meeting.days}<br>
-                  <em>Room:</em> ${meeting.room}<br>
-                  <em>Building:</em> ${meeting.building}<br>
-                  <em>Start Time:</em> ${meeting.start_time}<br>
-                  <em>End Time:</em> ${meeting.end_time}
-                `;
-                // Add marker for the building with route selection capability
-                L.marker([markerLat, markerLng], {
-                  icon: courseIcon,
-                  zIndexOffset: markerZIndexCounter++
-                }).addTo(activeMarkers)
-                  .bindPopup(popupContent)
-                  .on('click', markerRouteSelectHandler);
-              });
-            }
-          });
-          document.getElementById("scheduleContainer").style.display = "block";
-          renderPreviewBlock();
+sectionSelect.addEventListener("change", () => {
+  activeMarkers.clearLayers();
+  const sectionId = sectionSelect.value;
+  if (sectionId) {
+    const sectionObj = currentSections.find(s => s.section_id === sectionId);
+    if (sectionObj && sectionObj.meetings && sectionObj.meetings.length > 0) {
+      const currentCourseId = searchBar.value.trim();
+      const courseIcon = getCourseIcon(currentCourseId);
+      const meetingsByBuilding = {};
+      sectionObj.meetings.forEach(meeting => {
+        if (!meetingsByBuilding[meeting.building]) {
+          meetingsByBuilding[meeting.building] = [];
         }
-      } else {
-        removePreviewBlocks();
-      }
-    });
+        meetingsByBuilding[meeting.building].push(meeting);
+      });
+      Object.keys(meetingsByBuilding).forEach(buildingCode => {
+        const meetings = meetingsByBuilding[buildingCode];
+        const buildingRow = mapCSVData.find(b => b.code === buildingCode);
+        if (buildingRow) {
+          const baseLat = parseFloat(buildingRow.lat);
+          const baseLng = parseFloat(buildingRow.long);
+          meetings.forEach((meeting, index) => {
+            let markerLat = baseLat;
+            let markerLng = baseLng;
+            if (meetings.length > 1) {
+              const offset = 0.00005 * (index - (meetings.length - 1) / 2);
+              markerLng = baseLng + offset;
+            }
+            const popupContent = `
+              <strong>${meeting.classtype.trim() === "" ? "Lecture" : meeting.classtype}</strong><br>
+              <em>Days:</em> ${meeting.days}<br>
+              <em>Room:</em> ${meeting.room}<br>
+              <em>Building:</em> ${meeting.building}<br>
+              <em>Start Time:</em> ${meeting.start_time}<br>
+              <em>End Time:</em> ${meeting.end_time}<br><em>Instructor:</em> ${sectionObj.profList}
+            `;
+            // Add marker for the building with route selection capability
+            L.marker([markerLat, markerLng], {
+              icon: courseIcon,
+              zIndexOffset: markerZIndexCounter++
+            }).addTo(activeMarkers)
+              .bindPopup(popupContent)
+              .on('click', function(e) {
+                markerRouteSelectHandler(e);
+                highlightNearestRouteTo(e.latlng);
+                this.openPopup();
+              });
+          });
+        }
+      });
+      document.getElementById("scheduleContainer").style.display = "block";
+      renderPreviewBlock();
+      // Render prerequisite network for the selected course
+      
+    }
+  } else {
+    removePreviewBlocks();
+  }
+});
     
     // Day-of-week mapping and grid time parameters.
     const dayIndexMap = {
@@ -1849,7 +2075,11 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
           clonedMarker.bindPopup(popup);
         }
         // Attach route select handler to cloned markers as well.
-        clonedMarker.on('click', markerRouteSelectHandler);
+        clonedMarker.on('click', function(e) {
+          markerRouteSelectHandler(e);
+          highlightNearestRouteTo(e.latlng);
+          this.openPopup();
+        });
         courseLayerGroup.addLayer(clonedMarker);
       });
       courseLayerGroup.addTo(map);
@@ -1924,6 +2154,155 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
       renderSchedule();
     });
     
+    function renderProfComparison(instructors) {
+  // Clear previous
+  const container = d3.select("#profChart");
+  container.selectAll("*").remove();
+
+  // Increased left margin for label visibility
+  const margin = { top: 40, right: 20, bottom: 100, left: 80 },
+        width = 800 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+  const svg = container.append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Build data array of {name, rating, gpa}
+  const data = instructors.map(name => {
+    const prof = professorData.find(p => p.name === name);
+    return {
+      name,
+      rating: prof ? +prof.average_rating : 0,
+      gpa: avgGpaMap[name] || 0
+    };
+  });
+  // Inject total reported grades for each instructor
+  data.forEach(d => {
+    d.total = window.totalGradesMap[d.name] || 0;
+  });
+  // Opacity scale based on total grades reported among displayed instructors
+  const totalValues = data.map(d => d.total);
+  const minTotal = d3.min(totalValues);
+  const maxTotal = d3.max(totalValues);
+  const opacityScale = d3.scaleLinear()
+    .domain([minTotal, maxTotal])
+    .range([0.3, 1]);
+
+  // X and Y scales
+  const x = d3.scaleBand()
+      .domain(data.map(d => d.name))
+      .range([0, width])
+      .padding(0.1);
+  const y = d3.scaleLinear()
+      .domain([0, 5])
+      .range([height, 0]);
+
+  // Draw rating bars (left half)
+  svg.selectAll(".bar-rating")
+    .data(data)
+    .enter().append("rect")
+      .attr("class","bar-rating")
+      .attr("x", d => x(d.name))
+      .attr("y", d => y(d.rating))
+      .attr("width", x.bandwidth() / 2)
+      .attr("height", d => height - y(d.rating))
+      .attr("fill", "#e21833")  // UMD red
+      .attr("opacity", d => opacityScale(d.total));
+  // Draw GPA bars (right half)
+  svg.selectAll(".bar-gpa")
+    .data(data)
+    .enter().append("rect")
+      .attr("class","bar-gpa")
+      .attr("x", d => x(d.name) + x.bandwidth() / 2)
+      .attr("y", d => y(d.gpa))
+      .attr("width", x.bandwidth() / 2)
+      .attr("height", d => height - y(d.gpa))
+      .attr("fill", "#FFD326")  // UMD yellow
+      .attr("opacity", d => opacityScale(d.total));
+
+  // X-axis + label with tick rotation
+  svg.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .attr("text-anchor", "end")
+        .attr("dx", "-0.6em")
+        .attr("dy", "0.25em");
+  svg.append("g")
+      .attr("transform", `translate(0,${height})`)
+    .append("text")
+      .attr("x", width/2).attr("y", 100)
+      .attr("fill","#000").attr("text-anchor","middle")
+      .attr("font-weight", "bold")
+      .attr("font-size", "14px")
+      .attr("font-family", "Arial, sans-serif")
+      .text("Instructors");
+
+  // Y-axis
+  svg.append("g")
+      .call(d3.axisLeft(y).ticks(6));
+
+  // horizontal gridlines
+  svg.append("g")
+    .attr("class", "grid")
+    .call(d3.axisLeft(y)
+      .tickSize(-width)
+      .tickFormat(""))
+    .attr("stroke-opacity", 0.1);
+
+  // Reference line for GPA maximum (4)
+  svg.append("line")
+    .attr("x1", 0)
+    .attr("x2", width)
+    .attr("y1", y(4))
+    .attr("y2", y(4))
+    .attr("stroke", "#FFD326")
+    .attr("stroke-dasharray", "4,4");
+
+  // Reference line for Rating maximum (5)
+  svg.append("line")
+    .attr("x1", 0)
+    .attr("x2", width)
+    .attr("y1", y(5))
+    .attr("y2", y(5))
+    .attr("stroke", "#e21833")
+    .attr("stroke-dasharray", "4,4");
+
+  // Custom labels at y=5 (“Rating”) and y=4 (“GPA”)
+  [{v:5,l:"Rating"},{v:4,l:"GPA"}].forEach(d => {
+    svg.append("text")
+      .attr("x",-20)
+      .attr("y", y(d.v))
+      .attr("dy","0.35em")
+      .attr("text-anchor","end")
+      .attr("font-size", "14px")
+      .attr("font-family", "Arial, sans-serif")
+      .attr("font-weight","bold")
+      .text(d.l);
+  });
+}
+
+    // Toggle logic
+    const prereqContainer = document.getElementById('chartContainer');
+    const profContainer = document.getElementById('profComparisonContainer');
+    document.getElementById('prereqToggle').addEventListener('click', () => {
+      prereqContainer.style.display = 'block';
+      profContainer.style.display = 'none';
+      document.getElementById('prereqToggle').classList.add('selected');
+      document.getElementById('profToggle').classList.remove('selected');
+    });
+    document.getElementById('profToggle').addEventListener('click', () => {
+      prereqContainer.style.display = 'none';
+      profContainer.style.display = 'block';
+      document.getElementById('profToggle').classList.add('selected');
+      document.getElementById('prereqToggle').classList.remove('selected');
+      renderProfComparison(currentInstructors);
+    });
+
     // Draggable containers
     let highestZIndex = 11000;
     function makeDraggable(el) {
@@ -2591,6 +2970,7 @@ function populateBusRoutesList() {
     checkbox.type = 'checkbox';
     checkbox.checked = (busRoutesState[routeId] === undefined ? true : busRoutesState[routeId]);
     checkbox.style.marginRight = '8px';
+    checkbox.dataset.routeId = routeId;
 
     // Toggle the corresponding bus route layers when the checkbox is changed.
     checkbox.addEventListener('change', function() {
@@ -2612,6 +2992,7 @@ function populateBusRoutesList() {
           }
         });
       }
+      
        // Update the global state.
   busRoutesState[routeId] = checkbox.checked;
     });
@@ -2642,6 +3023,7 @@ function populateBusRoutesList() {
     busRoutesListEl.appendChild(item);
   });
 }
+
 
 
 document.getElementById("hideAllRoutes").addEventListener("click", function() {
@@ -2681,6 +3063,130 @@ document.getElementById("showAllRoutes").addEventListener("click", function() {
     checkbox.checked = true;
   });
 });
+
+// --- Prerequisite network data & render functions ---
+let prereqMap = {}, gpaMap = {}, popularityMap = {}, popularityScale;
+const gradePoints = { "A+":4.0, A:4.0, "A-":3.7, "B+":3.3, B:3.0, "B-":2.7,
+                      "C+":2.3, C:2.0, "C-":1.7, "D+":1.3, D:1.0, "D-":0.7, F:0.0 };
+// perceptually uniform colormap from d3
+const colorScale = d3.scaleSequential(d3.interpolateViridis)
+                     .domain([0, 4]);
+// Load prerequisites & grades
+Promise.all([
+  d3.csv('./data/prereq.csv'),
+  d3.csv('./data/aggregated_course_professor_grades.csv')
+]).then(([pr, gr]) => {
+  pr.forEach(d => {
+    prereqMap[d.course] = prereqMap[d.course]||[];
+    prereqMap[d.course].push(d.prereq);
+  });
+  // Build GPA map
+  let temp = {};
+  gr.forEach(r => {
+    const c = r.course;
+    if (!temp[c]) temp[c] = { pts: 0, cnt: 0 };
+    Object.entries(gradePoints).forEach(([g,p]) => {
+      const n = +r[g] || 0;
+      temp[c].pts += p*n;
+      temp[c].cnt += n;
+    });
+  });
+  Object.entries(temp).forEach(([c,d]) => {
+    gpaMap[c] = d.cnt ? d.pts/d.cnt : undefined;
+  });
+  // Build popularity map
+  gr.forEach(r => {
+    const c = r.course;
+    popularityMap[c] = (popularityMap[c]||0)
+      + Object.keys(r).filter(k=>'course'!==k).reduce((s,k)=>s+(+r[k]||0),0);
+  });
+  const pops = Object.values(popularityMap);
+  popularityScale = d3.scaleLinear()
+    .domain([d3.min(pops), d3.max(pops)])
+    .range([10,25]);
+});
+
+// Build a recursive tree of prerequisites
+function getTree(course, seen=new Set()) {
+  if (seen.has(course)) return null;
+  seen.add(course);
+  const node = { name: course };
+  if (prereqMap[course]) {
+    node.children = prereqMap[course]
+      .map(c=>getTree(c,seen))
+      .filter(n=>n);
+  }
+  return node;
+}
+
+// Render the tree into #chart
+function renderTree(courseId) {
+  const treeData = getTree(courseId);
+  const svg = d3.select('#chart').style('overflow','visible');
+  svg.selectAll('*').remove();
+  const w = +svg.attr('width'), h = +svg.attr('height');
+  const root = d3.hierarchy(treeData);
+  // 1) Compute the layout at full width/height
+const treeLayout = d3.tree().size([w - 200, h - 40]);
+treeLayout(root);
+
+// 2) Override vertical positions to compress spacing
+const depthSpacing = 50;  // ↓ lower this number to pack levels more tightly
+root.descendants().forEach(d => {
+  d.y = d.depth * depthSpacing;
+});
+  const g = svg.append('g').attr('transform','translate(100,20)');
+
+  // links
+  const linkGenerator = d3.linkVertical()
+   .x(d => d.x)
+   .y(d => d.y);
+
+ g.selectAll('path')
+   .data(root.links()).enter()
+   .append('path')
+   .attr('d', linkGenerator)
+   .attr('fill','none')
+   .attr('stroke','#ccc');
+  // nodes
+  const node = g.selectAll('g')
+   .data(root.descendants()).enter()
+   .append('g')
+   .attr('transform', d => `translate(${d.x},${d.y})`);
+
+  node.append('circle')
+    .attr('r', d=>{
+      const pop = popularityMap[d.data.name]||0;
+      return popularityScale? popularityScale(pop): 10;
+    })
+    .attr('fill', d=>{
+      const gpa = gpaMap[d.data.name];
+      return gpa!==undefined? colorScale(gpa): 'lightblue';
+    })  
+    .attr('stroke','#333')   // darker border
+    .attr('stroke-width',2)
+
+    // Hover labels: show course + GPA on mouseover, remove on mouseout
+node
+  .on('mouseover', function(event, d) {
+    d3.select(this)
+      .append('text')
+      .attr('class', 'hover-label')
+      .attr('dy', -20)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '12px')
+      .attr('font-weight', 'bold')
+      .text(() => {
+        const gpa = gpaMap[d.data.name];
+        return `${d.data.name} (${gpa !== undefined ? gpa.toFixed(2) : 'N/A'})`;
+      });
+  })
+  .on('mouseout', function() {
+    d3.select(this).selectAll('text.hover-label').remove();
+  });
+
+}
+
   </script>
 
 <script>
