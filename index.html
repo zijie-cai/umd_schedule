@@ -704,6 +704,10 @@
     .heatmap-active {
         background-color: #ddd !important; /* Example active background */
     }
+    /* Style for the bus button when active */
+    #busToggleBtn.bus-active {
+        background-color: #ddd !important;
+    }
   </style>
 </head>
 <body>
@@ -867,7 +871,7 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     // Toggle to control whether clicking markers shows bus routes/stops
-    window.showBusStops = true;
+    window.showBusStops = false;
     // Global variable for active route input.
     let activeRouteInput = null;
     // Global variable for the route polyline.
@@ -1212,6 +1216,7 @@ function highlightNearestRouteTo(latlng) {
     // Bus toggle button
     var busToggleButton = L.DomUtil.create('a', '', container);
     busToggleButton.innerHTML = '<i class="fas fa-bus"></i>';
+    busToggleButton.id = 'busToggleBtn';
     busToggleButton.title = "Toggle Bus Stops";
     busToggleButton.href = "#";
     busToggleButton.style.marginTop = '0px';
@@ -1219,12 +1224,10 @@ function highlightNearestRouteTo(latlng) {
       L.DomEvent.stopPropagation(e);
       L.DomEvent.preventDefault(e);
       window.showBusStops = !window.showBusStops;
-      // Change icon opacity to indicate state
-      busToggleButton.style.opacity = window.showBusStops ? '1.0' : '0.6';
+      // toggle the pressed background
+      this.classList.toggle('bus-active', window.showBusStops);
       this.blur();
     });
-    // Set initial opacity
-    busToggleButton.style.opacity = window.showBusStops ? '1.0' : '0.6';
 
 
     // Heatmap toggle button (newly added below home)
