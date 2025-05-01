@@ -862,6 +862,8 @@
   
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
+    // Toggle to control whether clicking markers shows bus routes/stops
+    window.showBusStops = true;
     // Global variable for active route input.
     let activeRouteInput = null;
     // Global variable for the route polyline.
@@ -1103,7 +1105,9 @@ function highlightNearestRouteTo(latlng) {
           window.currentLocationMarker.addTo(map).openPopup();
           window.currentLocationMarker.on('click', function(e) {
             markerRouteSelectHandler(e);
-            highlightNearestRouteTo(e.latlng);
+            if (window.showBusStops) {
+              highlightNearestRouteTo(e.latlng);
+            }
             this.openPopup();
           });
           map.setView([lat, lon], 15);
@@ -1179,7 +1183,9 @@ function highlightNearestRouteTo(latlng) {
           window.homeMarker.addTo(map).openPopup();
           window.homeMarker.on('click', function(e) {
             markerRouteSelectHandler(e);
-            highlightNearestRouteTo(e.latlng);
+            if (window.showBusStops) {
+              highlightNearestRouteTo(e.latlng);
+            }
             this.openPopup();
           });
           map.panTo([lat, lon]);
@@ -1194,6 +1200,24 @@ function highlightNearestRouteTo(latlng) {
   }
   this.blur();
 });
+
+    // Bus toggle button
+    var busToggleButton = L.DomUtil.create('a', '', container);
+    busToggleButton.innerHTML = '<i class="fas fa-bus"></i>';
+    busToggleButton.title = "Toggle Bus Stops";
+    busToggleButton.href = "#";
+    busToggleButton.style.marginTop = '0px';
+    L.DomEvent.on(busToggleButton, 'click', function(e) {
+      L.DomEvent.stopPropagation(e);
+      L.DomEvent.preventDefault(e);
+      window.showBusStops = !window.showBusStops;
+      // Change icon opacity to indicate state
+      busToggleButton.style.opacity = window.showBusStops ? '1.0' : '0.6';
+      this.blur();
+    });
+    // Set initial opacity
+    busToggleButton.style.opacity = window.showBusStops ? '1.0' : '0.6';
+
     return container;
   },
   onRemove: function(map) {
@@ -1226,7 +1250,9 @@ L.control.homeReset({ position: 'topleft' }).addTo(map);
       .bindPopup('University of Maryland, College Park')
       .on('click', function(e) {
         markerRouteSelectHandler(e);
-        highlightNearestRouteTo(e.latlng);
+        if (window.showBusStops) {
+          highlightNearestRouteTo(e.latlng);
+        }
         this.openPopup();
       });
     window.campusMarker.openPopup();
@@ -1353,6 +1379,9 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
           // Only open the popup when a bus stop marker is clicked
           marker.on('click', function(e) {
             markerRouteSelectHandler(e);
+            if (window.showBusStops) {
+              highlightNearestRouteTo(e.latlng);
+            }
             this.openPopup();
           });
 
@@ -2077,7 +2106,9 @@ sectionSelect.addEventListener("change", () => {
         // Attach route select handler to cloned markers as well.
         clonedMarker.on('click', function(e) {
           markerRouteSelectHandler(e);
-          highlightNearestRouteTo(e.latlng);
+          if (window.showBusStops) {
+            highlightNearestRouteTo(e.latlng);
+          }
           this.openPopup();
         });
         courseLayerGroup.addLayer(clonedMarker);
