@@ -716,6 +716,11 @@
     #busToggleBtn.bus-active {
         background-color: #ddd !important;
     }
+    .prof-tooltip {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+}
   </style>
 </head>
 <body>
@@ -1633,8 +1638,9 @@ Promise.all([
 ]).then(([profData, gpaData]) => {
   professorData = profData;
   gpaData.forEach(row => {
-    const profName = row.name || row.Name || row.professor || row.Professor;
-    // Support different possible GPA column headers
+  const profName = row.name || row.Name || row.professor || row.Professor;
+  if (profName) {
+    const key = profName.trim().toLowerCase();
     const gpaValue = row.avg_gpa != null
       ? +row.avg_gpa
       : (row.AVG_GPA != null
@@ -1642,24 +1648,21 @@ Promise.all([
          : (row.Avg_gpa != null
             ? +row.Avg_gpa
             : NaN));
-    if (profName) {
-      avgGpaMap[profName] = isNaN(gpaValue) ? 0 : gpaValue;
-    }
-  });
-  // Build total grades map and compute max for opacity scaling
-  const totalGradesMap = {};
-  gpaData.forEach(row => {
-    const profName = row.name || row.Name || row.professor || row.Professor;
-    const total = row.total_grades != null ? +row.total_grades : 0;
-    if (profName) totalGradesMap[profName] = total;
-  });
-  // Expose globally for use in rendering
-  window.totalGradesMap = totalGradesMap;
-  window.maxTotalGrades = d3.max(Object.values(totalGradesMap)) || 0;
-  console.log("avgGpaMap:", avgGpaMap);
-  // Now that both data sets are loaded, render the comparison
-  renderProfComparison(currentInstructors);
-  renderDifficultyPlot(d.course_id);
+    avgGpaMap[key] = isNaN(gpaValue) ? 0 : gpaValue;
+  }
+});
+// Build total grades map with lowercase keys
+const totalGradesMap = {};
+gpaData.forEach(row => {
+  const profName = row.name || row.Name || row.professor || row.Professor;
+  if (profName) {
+    const key = profName.trim().toLowerCase();
+    totalGradesMap[key] = row.total_grades != null ? +row.total_grades : 0;
+  }
+});
+window.totalGradesMap = totalGradesMap;
+window.maxTotalGrades = d3.max(Object.values(totalGradesMap)) || 0;
+renderProfComparison(currentInstructors);
 }).catch(err => console.error("Error loading professor data:", err));
     function loadSections(courseId) {
   const semester = termSelect.value === "Spring 2025" ? "202501" : "202508";
@@ -1671,10 +1674,14 @@ Promise.all([
       sec.profList = sec.instructors.length
         ? sec.instructors.join(', ')
         : 'TBA';
+      console.log("Section instructors:", sec.instructors);
 
-      // collect each prof’s average_rating (0 if unknown)
+      // collect each prof’s average_rating (0 if unknown), case-insensitive match
       const ratings = sec.instructors.map(name => {
-        const prof = professorData.find(p => p.name === name);
+        const key = name.trim().toLowerCase();
+        const prof = professorData.find(p =>
+          p.name && p.name.trim().toLowerCase() === key
+        );
         return prof ? +prof.average_rating : 0;
       });
       // average (or 0 if none)
@@ -1696,18 +1703,22 @@ Promise.all([
     // 3. Populate the <select>
     sectionSelect.innerHTML = '<option value="">Section</option>';
     sections.forEach(sec => {
-      const label = sec.section_id.includes('-')
-        ? sec.section_id.split('-')[1]
-        : sec.section_id;
+      // Compute instructor initials for this section
+const initials = sec.instructors
+  .map(name => name.trim().split(' ').map(w => w[0]).join(''))
+  .join('/');
 
-      const opt = document.createElement('option');
-      opt.value = sec.section_id;
-      // e.g. “0201 ⭐4.8”
-      const stars = sec.sectionRating
-        ? `⭐${sec.sectionRating.toFixed(1)}`
-        : '';
-      opt.textContent = `${label} ${stars}`;
-      sectionSelect.appendChild(opt);
+const label = sec.section_id.includes('-')
+  ? sec.section_id.split('-')[1]
+  : sec.section_id;
+const opt = document.createElement("option");
+opt.value = sec.section_id;
+const stars = sec.sectionRating
+  ? `⭐${sec.sectionRating.toFixed(1)}`
+  : '';
+// Prefix with initials
+opt.textContent = `${initials} ${label} ${stars}`;
+sectionSelect.appendChild(opt);
     });
 
     currentSections = sections;
@@ -1717,7 +1728,6 @@ Promise.all([
     );
     // Pre-render professor comparison data for the course
     renderProfComparison(currentInstructors);
-    renderDifficultyPlot(d.course_id);
   })
     
   .catch(err => console.error("Error loading sections:", err));
@@ -2366,6 +2376,17 @@ sectionSelect.addEventListener("change", () => {
     });
     
     function renderProfComparison(instructors) {
+        // Tooltip container for professor bars
+  const profTooltip = d3.select("body")
+    .append("div")
+    .attr("class", "prof-tooltip")
+    .style("position", "absolute")
+    .style("padding", "6px")
+    .style("background", "rgba(0, 0, 0, 0.7)")
+    .style("color", "#fff")
+    .style("border-radius", "4px")
+    .style("pointer-events", "none")
+    .style("opacity", 0);
   // Clear previous
   const container = d3.select("#profChart");
   container.selectAll("*").remove();
@@ -2382,25 +2403,37 @@ sectionSelect.addEventListener("change", () => {
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
   // Build data array of {name, rating, gpa}
-  const data = instructors.map(name => {
-    const prof = professorData.find(p => p.name === name);
-    return {
-      name,
-      rating: prof ? +prof.average_rating : 0,
-      gpa: avgGpaMap[name] || 0
-    };
+  const data = instructors.map(rawName => {
+    const nameKey = rawName.trim().toLowerCase();
+  // Compute initials
+  const initials = rawName.trim().split(' ').map(w => w[0]).join('');
+  const prof = professorData.find(p => p.name.trim().toLowerCase() === nameKey);
+  return { 
+    name: rawName,
+    initials: initials,
+    rating: prof ? +prof.average_rating : 0,
+  gpa: avgGpaMap[nameKey] || 0,
+  total: window.totalGradesMap[nameKey] || 0,
+  reviewsCount: prof ? prof.reviews.length : 0
+};
   });
-  // Inject total reported grades for each instructor
-  data.forEach(d => {
-    d.total = window.totalGradesMap[d.name] || 0;
-  });
+
   // Opacity scale based on total grades reported among displayed instructors
-  const totalValues = data.map(d => d.total);
-  const minTotal = d3.min(totalValues);
-  const maxTotal = d3.max(totalValues);
-  const opacityScale = d3.scaleLinear()
-    .domain([minTotal, maxTotal])
-    .range([0.3, 1]);
+  // separate opacity scales
+const reviewCounts = data.map(d => d.reviewsCount);
+const [minRev, maxRev] = d3.extent(reviewCounts);
+console.log("minRev, maxRev", minRev, maxRev);
+const reviewOpacityScale = d3.scaleLinear()
+  .domain([minRev === maxRev ? 0 : minRev, maxRev])
+  .range([0.3, 1]);
+
+const gradeCounts = data.map(d => d.total);
+
+const [minGrade, maxGrade] = d3.extent(gradeCounts);
+console.log("minGrade, maxGrade", minGrade, maxGrade);
+const gradeOpacityScale = d3.scaleLinear()
+  .domain([minGrade === maxGrade ? 0 : minGrade, maxGrade])
+  .range([0.3, 1]);
 
   // X and Y scales
   const x = d3.scaleBand()
@@ -2421,7 +2454,24 @@ sectionSelect.addEventListener("change", () => {
       .attr("width", x.bandwidth() / 2)
       .attr("height", d => height - y(d.rating))
       .attr("fill", "#e21833")  // UMD red
-      .attr("opacity", d => opacityScale(d.total));
+      .attr("fill-opacity", d => reviewOpacityScale(d.reviewsCount))
+      .on("mouseover", (event, d) => {
+        profTooltip
+          .html(
+            `Instructor: <strong>${d.initials}</strong><br/>
+             Avg Rating: <strong>${d.rating.toFixed(1)}</strong><br/>
+             Reviews: <strong>${d.reviewsCount}</strong>`
+          )
+          .style("left",  (event.pageX + 10) + "px")
+          .style("top",   (event.pageY - 25) + "px")
+          .transition().duration(100)
+          .style("opacity", 0.9);
+      })
+      .on("mouseout", () => {
+        profTooltip.transition().duration(200).style("opacity", 0);
+      });
+
+
   // Draw GPA bars (right half)
   svg.selectAll(".bar-gpa")
     .data(data)
@@ -2432,7 +2482,22 @@ sectionSelect.addEventListener("change", () => {
       .attr("width", x.bandwidth() / 2)
       .attr("height", d => height - y(d.gpa))
       .attr("fill", "#FFD326")  // UMD yellow
-      .attr("opacity", d => opacityScale(d.total));
+      .attr("fill-opacity", d => gradeOpacityScale(d.total))
+      .on("mouseover", (event, d) => {
+        profTooltip
+          .html(
+            `Instructor: <strong>${d.initials}</strong><br/>
+             Avg GPA: <strong>${d.gpa.toFixed(2)}</strong><br/>
+             Grades Reported: <strong>${d.total}</strong>`
+          )
+          .style("left",  (event.pageX + 10) + "px")
+          .style("top",   (event.pageY - 25) + "px")
+          .transition().duration(100)
+          .style("opacity", 0.9);
+      })
+      .on("mouseout", () => {
+        profTooltip.transition().duration(200).style("opacity", 0);
+      });
 
   // X-axis + label with tick rotation
   svg.append("g")
@@ -2633,7 +2698,7 @@ trendLine
     difficultyTooltip
       .html(
         `<strong>Trend:</strong> ${trend}<br>` +
-        `<strong>Slope:</strong> ${slope.toFixed(3)}`
+        `<strong>Slope:</strong> ${slope.toFixed(5)}`
       )
       .style("left",  (event.pageX + 10) + "px")
       .style("top",   (event.pageY - 25) + "px")
@@ -2678,7 +2743,6 @@ trendLine
       document.getElementById('prereqToggle').classList.remove('selected');
       document.getElementById('difficultyToggle').classList.remove('selected');
       renderProfComparison(currentInstructors);
-      renderDifficultyPlot(d.course_id);
     });
 
     document.getElementById('difficultyToggle').addEventListener('click', () => {
@@ -2688,7 +2752,6 @@ trendLine
       document.getElementById('difficultyToggle').classList.add('selected');
       document.getElementById('prereqToggle').classList.remove('selected');
       document.getElementById('profToggle').classList.remove('selected');
-      // TODO: renderDifficultyPlot();
     });
 
     // Draggable containers
