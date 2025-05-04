@@ -6,6 +6,9 @@
   <!-- Leaflet CSS for interactive map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/d3-array.v2.min.js"></script>
+  <script src="https://d3js.org/d3-scale.v3.min.js"></script>
+  <script src="https://d3js.org/d3-shape.v2.min.js"></script>
   <!-- Font Awesome for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
  
@@ -708,19 +711,73 @@
       background: #e21833;
       color: #fff;
     }
-    /* Style for the heatmap button when active */
+    /* Style for the heatmap buttons when active */
     .heatmap-active {
-        background-color: #ddd !important; /* Example active background */
+        background-color: #ddd !important;
+    }
+    #seatHeatmapToggleBtn.heatmap-active {
+        background-color: #ddd !important;
     }
     /* Style for the bus button when active */
     #busToggleBtn.bus-active {
         background-color: #ddd !important;
     }
+
+    /* Ridgeline chart styles */
+    #ridgelineContainer {
+      cursor: move;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      padding: 15px;
+      z-index: 1000;
+    }
+
+    #ridgelineContainer h3 {
+      color: #e21833;
+      margin: 0 0 15px 0;
+      font-size: 16px;
+    }
+
+    #ridgelinePlot {
+      font-family: Arial, sans-serif;
+    }
+
+    #ridgelinePlot .grid line {
+      stroke: #ddd;
+    }
+
+    #ridgelinePlot text {
+      font-size: 12px;
+    }
+
+    #ridgelinePlot .axis-label {
+      font-weight: bold;
+    }
+
+    /* Make the close button more visible */
+    #ridgelineContainer button {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 20px;
+      position: absolute;
+      right: 10px;
+      top: 10px;
+    }
+
+    #ridgelineContainer button:hover {
+      color: #e21833;
+    }
+
     .prof-tooltip {
-  font-family: Arial, sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-}
+   font-family: Arial, sans-serif;
+   font-size: 12px;
+   line-height: 1.4;
+ }
+
+    
   </style>
 </head>
 <body>
@@ -763,6 +820,13 @@
 
     <div class="results" id="resultsContainer"></div>
     <div id="map"></div>
+    <div id="ridgelineContainer" style="display: none; position: absolute; top: 60px; right: 10px; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 1000; width: 600px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="margin: 0; color: #e21833;">Class Times Distribution</h3>
+        <button onclick="this.parentElement.parentElement.style.display='none'" style="border: none; background: none; cursor: pointer; font-size: 18px;">×</button>
+      </div>
+      <div id="ridgelinePlot"></div>
+    </div>
     <!-- Visualization Toggle -->
     <div class="vis-toggle">
       <button id="prereqToggle" class="toggle-btn selected">Prerequisite Network</button>
@@ -893,10 +957,13 @@
     // Global variable for the route polyline.
     let routePolyline = null;
     
-    // Add variables for heatmap
+    // Add variables for heatmaps
     let heatmapLayer = null;
+    let seatHeatmapLayer = null;
     let buildingCountsData = null;
-    let heatmapActive = false; // State flag for heatmap
+    let buildingSeatData = null;
+    let heatmapActive = false; // State flag for class count heatmap
+    let seatHeatmapActive = false; // State flag for seat occupancy heatmap
 
     // Instead of clearing activeRouteInput on blur, we only set it on focus.
     const startLocationInput = document.getElementById('startLocation');
@@ -1048,7 +1115,7 @@ function highlightNearestRouteTo(latlng) {
     
     let coursesData = [];
     let currentSections = [];
-    // after “let currentSections = [];”
+    // after "let currentSections = [];"
     let currentInstructors = [];
     let mapCSVData = [];
     
@@ -1246,16 +1313,42 @@ function highlightNearestRouteTo(latlng) {
     });
 
 
-    // Heatmap toggle button (newly added below home)
+    // Class count heatmap button
     var heatmapButton = L.DomUtil.create('a', '', container);
-    heatmapButton.innerHTML = '<i class="fas fa-fire"></i>'; // Fire icon for heatmap
-    heatmapButton.title = "Toggle Building Class Heatmap";
+    heatmapButton.innerHTML = '<i class="fas fa-fire"></i>'; // Fire icon for class heatmap
+    heatmapButton.title = "Toggle Building Class Count Heatmap";
     heatmapButton.href = "#";
-    heatmapButton.id = "heatmapToggleBtn"; // Add an ID for easy selection
+    heatmapButton.id = "heatmapToggleBtn";
     L.DomEvent.on(heatmapButton, 'click', function(e) {
         L.DomEvent.stopPropagation(e);
         L.DomEvent.preventDefault(e);
-        toggleHeatmap(); // Call the function to toggle heatmap
+        toggleHeatmap();
+        this.blur();
+    });
+
+    // Seat occupancy heatmap button
+    var seatHeatmapButton = L.DomUtil.create('a', '', container);
+    seatHeatmapButton.innerHTML = '<i class="fas fa-chair"></i>'; // Chair icon for seat heatmap
+    seatHeatmapButton.title = "Toggle Building Seat Occupancy Heatmap";
+    seatHeatmapButton.href = "#";
+    seatHeatmapButton.id = "seatHeatmapToggleBtn";
+    L.DomEvent.on(seatHeatmapButton, 'click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        toggleSeatHeatmap();
+        this.blur();
+    });
+
+    // Add ridgeline chart button
+    var ridgelineButton = L.DomUtil.create('a', '', container);
+    ridgelineButton.innerHTML = '<i class="fas fa-chart-area"></i>';
+    ridgelineButton.title = "Toggle Building Time Distribution";
+    ridgelineButton.href = "#";
+    ridgelineButton.id = "ridgelineToggleBtn";
+    L.DomEvent.on(ridgelineButton, 'click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        showDailyTimeRidgeline();
         this.blur();
     });
 
@@ -1517,6 +1610,14 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
       searchBar.value = ''; // Clear search bar
       removePreviewBlocks(); // Clear any schedule previews
       activeMarkers.clearLayers(); // Clear any preview markers
+      
+      // Update heatmaps if they are active
+      if (heatmapActive) {
+        createHeatmap();
+      }
+      if (seatHeatmapActive) {
+        createSeatHeatmap();
+      }
     });
     
     // --- HEATMAP FUNCTIONS ---
@@ -1614,7 +1715,446 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
 
     // --- END HEATMAP FUNCTIONS ---
 
-    
+    // --- SEAT HEATMAP FUNCTIONS ---
+    function removeSeatHeatmap() {
+        if (seatHeatmapLayer) {
+            map.removeLayer(seatHeatmapLayer);
+            seatHeatmapLayer = null;
+        }
+        seatHeatmapActive = false;
+        document.getElementById('seatHeatmapToggleBtn')?.classList.remove('heatmap-active');
+        console.log("Seat heatmap removed.");
+    }
+
+    function processSeatData() {
+        const term = termSelect.value;
+        const sectionsFile = term === "Spring 2025" ? "./data/course_sections_spring.json" : "./data/course_sections_fall.json";
+        
+        return d3.json(sectionsFile).then(data => {
+            const buildingStats = {};
+            
+            // Process each course's sections
+            Object.values(data).forEach(sections => {
+                sections.forEach(section => {
+                    if (!section.meetings) return;
+                    
+                    section.meetings.forEach(meeting => {
+                        const building = meeting.building;
+                        if (!building || building.trim() === "") return;
+                        
+                        if (!buildingStats[building]) {
+                            buildingStats[building] = {
+                                totalSeats: 0,
+                                filledSeats: 0,
+                                lat: null,
+                                long: null
+                            };
+                        }
+                        
+                        const totalSeats = parseInt(section.seats) || 0;
+                        const openSeats = parseInt(section.open_seats) || 0;
+                        const filledSeats = totalSeats - openSeats;
+                        
+                        buildingStats[building].totalSeats += totalSeats;
+                        buildingStats[building].filledSeats += filledSeats;
+                    });
+                });
+            });
+            
+            // Add coordinates from mapCSVData
+            mapCSVData.forEach(building => {
+                if (buildingStats[building.code]) {
+                    buildingStats[building.code].lat = parseFloat(building.lat);
+                    buildingStats[building.code].long = parseFloat(building.long);
+                }
+            });
+            
+            return buildingStats;
+        });
+    }
+
+    function createSeatHeatmap() {
+        removeSeatHeatmap();
+
+        processSeatData().then(seatData => {
+            buildingSeatData = seatData;
+            seatHeatmapLayer = L.layerGroup();
+
+            // Get array of filled seats for scaling
+            const filledSeatsArray = Object.values(seatData)
+                .filter(d => d.totalSeats > 0)
+                .map(d => d.filledSeats);
+
+            if (filledSeatsArray.length === 0) {
+                console.log("No seat data found.");
+                return;
+            }
+
+            const minSeats = Math.min(...filledSeatsArray);
+            const maxSeats = Math.max(...filledSeatsArray);
+
+            // Color scale: Blue (few seats) to Red (many seats)
+            const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
+                               .domain([minSeats, maxSeats]);
+
+            // Radius scale based on total seats
+            const radiusScale = d3.scaleSqrt()
+                                .domain([minSeats, maxSeats])
+                                .range([20, 60]); // Min and max radius
+
+            for (const buildingCode in seatData) {
+                const data = seatData[buildingCode];
+                if (!data.lat || !data.long || data.totalSeats === 0) continue;
+
+                const filledSeats = data.filledSeats;
+                const color = colorScale(filledSeats);
+                const radius = radiusScale(filledSeats); // Dynamic radius based on number of seats
+
+                const circle = L.circle([data.lat, data.long], {
+                    radius: radius,
+                    color: 'black',
+                    weight: 1,
+                    fillColor: color,
+                    fillOpacity: 0.7
+                }).bindPopup(
+                    `<b>${buildingCode}</b><br>` +
+                    `Filled Seats: ${data.filledSeats}<br>` +
+                    `Total Seats: ${data.totalSeats}<br>` +
+                    `Occupancy: ${((data.filledSeats / data.totalSeats) * 100).toFixed(1)}%`
+                );
+                
+                seatHeatmapLayer.addLayer(circle);
+            }
+
+            seatHeatmapLayer.addTo(map);
+            seatHeatmapActive = true;
+            document.getElementById('seatHeatmapToggleBtn')?.classList.add('heatmap-active');
+            console.log("Seat heatmap created and added.");
+        });
+    }
+
+    function toggleSeatHeatmap() {
+        if (seatHeatmapActive) {
+            removeSeatHeatmap();
+        } else {
+            createSeatHeatmap();
+        }
+    }
+    // --- END SEAT HEATMAP FUNCTIONS ---
+
+
+    // --- RIDGELINE CHART FUNCTIONS ---
+    let ridgelineLayer = null;
+    let isRidgelineActive = false;
+
+    function parseTimeToMinutes(timeStr) {
+      if (!timeStr) return null;
+      const match = timeStr.match(/(\d+):(\d+)(am|pm)/i);
+      if (!match) return null;
+      
+      let hour = parseInt(match[1]);
+      const minute = parseInt(match[2]);
+      const isPM = match[3].toLowerCase() === 'pm';
+      
+      if (isPM && hour !== 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      
+      return hour * 60 + minute;
+    }
+
+    function showDailyTimeRidgeline() {
+      if (isRidgelineActive) {
+        if (ridgelineLayer) {
+          map.removeLayer(ridgelineLayer);
+        }
+        isRidgelineActive = false;
+        document.getElementById('ridgelineContainer').style.display = 'none';
+        document.getElementById('ridgelineToggleBtn')?.classList.remove('heatmap-active');
+        return;
+      }
+
+      // First, get the current term's sections data
+      const term = termSelect.value;
+      const sectionsFile = term === "Spring 2025" ? "./data/course_sections_spring.json" : "./data/course_sections_fall.json";
+
+      d3.json(sectionsFile).then(data => {
+        // Create a set of buildings that have valid class data
+        const buildingsWithClasses = new Set();
+        
+        Object.values(data).forEach(sections => {
+          sections.forEach(section => {
+            if (!section.meetings) return;
+            
+            section.meetings.forEach(meeting => {
+              // Only include buildings with valid building and room information
+              if (meeting.building && meeting.room && 
+                  meeting.building.trim() !== "" && meeting.room.trim() !== "") {
+                buildingsWithClasses.add(meeting.building);
+              }
+            });
+          });
+        });
+
+        ridgelineLayer = L.layerGroup();
+        isRidgelineActive = true;
+
+        // Only add circles for buildings that have classes
+        mapCSVData.forEach(building => {
+          if (!buildingsWithClasses.has(building.code)) return;
+          
+          const lat = parseFloat(building.lat);
+          const lng = parseFloat(building.long);
+          if (isNaN(lat) || isNaN(lng)) return;
+
+          const circle = L.circle([lat, lng], {
+            radius: 30,
+            color: '#e21833',
+            weight: 2,
+            fillColor: '#fff',
+            fillOpacity: 0.7
+          }).on('click', () => renderRidgelineChart(building.code));
+
+          ridgelineLayer.addLayer(circle);
+        });
+
+        ridgelineLayer.addTo(map);
+        document.getElementById('ridgelineToggleBtn')?.classList.add('heatmap-active');
+      });
+    }
+
+    function renderRidgelineChart(buildingCode) {
+      const term = termSelect.value;
+      const sectionsFile = term === "Spring 2025" ? "./data/course_sections_spring.json" : "./data/course_sections_fall.json";
+      
+      d3.json(sectionsFile).then(data => {
+        // Collect all class times for this building
+        const timesByDay = {
+          'M': [], 'Tu': [], 'W': [], 'Th': [], 'F': []
+        };
+
+        // Find building name from mapCSVData
+        const buildingInfo = mapCSVData.find(b => b.code === buildingCode);
+        const buildingName = buildingInfo ? buildingInfo.name : buildingCode;
+
+        // Filter sections to only include those in this building
+        Object.values(data).forEach(sections => {
+          sections.forEach(section => {
+            if (!section.meetings) return;
+            
+            section.meetings.forEach(meeting => {
+              // Skip if not in this building or no building/room info
+              if (meeting.building !== buildingCode || !meeting.building || !meeting.room || 
+                  meeting.building.trim() === "" || meeting.room.trim() === "") {
+                return;
+              }
+              
+              const startMinutes = parseTimeToMinutes(meeting.start_time);
+              if (startMinutes === null) return;
+
+              const days = parseDays(meeting.days);
+              days.forEach(day => {
+                if (timesByDay[day]) {
+                  timesByDay[day].push(startMinutes);
+                }
+              });
+            });
+          });
+        });
+
+        // Calculate total classes once
+        const totalClasses = Object.values(timesByDay).reduce((sum, times) => sum + times.length, 0);
+        
+        // Check if we have any data to display
+        if (totalClasses === 0) {
+          console.log(`No class data found for building ${buildingCode}`);
+          return;
+        }
+
+        // Show the container
+        const container = document.getElementById('ridgelineContainer');
+        container.style.display = 'block';
+
+        // Clear previous chart
+        d3.select('#ridgelinePlot').selectAll('*').remove();
+
+        // Set up dimensions
+        const margin = {top: 40, right: 120, bottom: 40, left: 60};
+        const width = 450;
+        const height = 300;
+
+        // Create SVG
+        const svg = d3.select('#ridgelinePlot')
+          .append('svg')
+          .attr('width', width + margin.left + margin.right)
+          .attr('height', height + margin.top + margin.bottom)
+          .append('g')
+          .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Add background grid
+        svg.append('g')
+          .attr('class', 'grid')
+          .attr('opacity', 0.1)
+          .call(d3.axisBottom(d3.scaleLinear()
+            .domain([7 * 60, 21 * 60])
+            .range([0, width]))
+            .tickSize(height)
+            .tickFormat('')
+          );
+
+        // Set up scales
+        const x = d3.scaleLinear()
+          .domain([7 * 60, 21 * 60]) // 7 AM to 9 PM in minutes
+          .range([0, width]);
+
+        const y = d3.scalePoint()
+          .domain(['F', 'Th', 'W', 'Tu', 'M'])
+          .range([height - 40, 40]) // Adjust range to allow for overlap
+          .padding(0.5);
+
+        // Create ticks at every hour from 7am to 9pm
+        const hourTicks = d3.range(7 * 60, 21 * 60 + 1, 60);
+        svg.append('g')
+          .attr('transform', `translate(0,${height})`)
+          .call(
+            d3.axisBottom(x)
+              .tickValues(hourTicks)
+              .tickFormat(d => {
+                const hour = d / 60;
+                return `${hour <= 12 ? hour : hour - 12}${hour < 12 ? 'am' : 'pm'}`;
+              })
+          );
+
+        // Add Y axis with day labels
+        svg.append('g')
+          .call(d3.axisLeft(y));
+
+        // Create kernel density estimator
+        const kde = (kernel, thresholds, data) => {
+          return thresholds.map(t => [t, d3.mean(data, d => kernel(t - d)) || 0]);
+        };
+
+        const epanechnikov = (bandwidth) => {
+          return x => Math.abs(x /= bandwidth) <= 1 ? 0.75 * (1 - x * x) / bandwidth : 0;
+        };
+
+        // Find max density for scaling
+        let maxDensity = 0;
+        Object.entries(timesByDay).forEach(([day, times]) => {
+          if (times.length === 0) return;
+          const density = kde(epanechnikov(30), 
+            d3.range(7 * 60, 21 * 60, 10),
+            times
+          );
+          maxDensity = Math.max(maxDensity, d3.max(density, d => d[1]));
+        });
+
+        // Generate density curves for each day
+        const overlap = 60; // Overlap factor for ridgeline effect
+        Object.entries(timesByDay).forEach(([day, times]) => {
+          if (times.length === 0) return;
+
+          const density = kde(epanechnikov(30), 
+            d3.range(7 * 60, 21 * 60, 10),
+            times
+          );
+
+          // Create area generator for ridgeline effect
+          const area = d3.area()
+            .curve(d3.curveBasis)
+            .x(d => x(d[0]))
+            .y0(d => y(day))
+            .y1(d => y(day) - (d[1] / maxDensity) * overlap);
+
+          // Create gradient
+          const gradientId = `gradient-${day}`;
+          const gradient = svg.append('defs')
+            .append('linearGradient')
+            .attr('id', gradientId)
+            .attr('x1', '0%')
+            .attr('y1', '0%')
+            .attr('x2', '0%')
+            .attr('y2', '100%');
+
+          gradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', '#e21833')
+            .attr('stop-opacity', 0.8);
+
+          gradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', '#e21833')
+            .attr('stop-opacity', 0.1);
+
+          // Add the filled area
+          svg.append('path')
+            .datum(density)
+            .attr('fill', `url(#${gradientId})`)
+            .attr('stroke', '#e21833')
+            .attr('stroke-width', 1)
+            .attr('d', area);
+
+          // Add class count label
+          svg.append('text')
+            .attr('x', width + 5)
+            .attr('y', y(day))
+            .attr('dy', '0.3em')
+            .attr('font-size', '12px')
+            .attr('fill', '#666')
+            .text(`(${times.length} classes)`);
+        });
+
+        // Add title with building name
+        svg.append('text')
+          .attr('x', width / 2)
+          .attr('y', -20)
+          .attr('text-anchor', 'middle')
+          .style('font-size', '14px')
+          .style('font-weight', 'bold')
+          .text(`${buildingCode} - ${buildingName}`);
+
+        // Add subtitle with total class count using the previously calculated totalClasses
+        svg.append('text')
+          .attr('x', width / 2)
+          .attr('y', -5)
+          .attr('text-anchor', 'middle')
+          .style('font-size', '12px')
+          .style('fill', '#666')
+          .text(`Total: ${totalClasses} classes`);
+      });
+    }
+
+    // Add ridgeline chart button to control bar
+    L.Control.RidgelineControl = L.Control.extend({
+      onAdd: function(map) {
+        const container = L.DomUtil.create('div', 'leaflet-bar');
+        const button = L.DomUtil.create('a', '', container);
+        button.innerHTML = '<i class="fas fa-chart-area"></i>';
+        button.title = "Toggle Building Time Distribution";
+        button.href = "#";
+        
+        L.DomEvent.on(button, 'click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          L.DomEvent.preventDefault(e);
+          showDailyTimeRidgeline();
+          this.classList.toggle('active', isRidgelineActive);
+          this.blur();
+        });
+        
+        return container;
+      }
+    });
+
+    L.control.ridgeline = function(opts) {
+      return new L.Control.RidgelineControl(opts);
+    };
+
+    // Add the ridgeline control to the map
+    // L.control.ridgeline({ position: 'topleft' }).addTo(map);  // Removing this line to avoid duplicate control
+
+    // --- END RIDGELINE CHART FUNCTIONS ---
+
+
+
     // When the search bar input becomes invalid, reset section, remove schedule preview blocks and clear preview markers.
     searchBar.addEventListener("input", function() {
       const currentText = this.value.trim();
@@ -1638,9 +2178,10 @@ Promise.all([
 ]).then(([profData, gpaData]) => {
   professorData = profData;
   gpaData.forEach(row => {
-  const profName = row.name || row.Name || row.professor || row.Professor;
-  if (profName) {
-    const key = profName.trim().toLowerCase();
+    const profName = row.name || row.Name || row.professor || row.Professor;
+   if (profName) {
+     const key = profName.trim().toLowerCase();
+    // Support different possible GPA column headers
     const gpaValue = row.avg_gpa != null
       ? +row.avg_gpa
       : (row.AVG_GPA != null
@@ -1648,21 +2189,21 @@ Promise.all([
          : (row.Avg_gpa != null
             ? +row.Avg_gpa
             : NaN));
-    avgGpaMap[key] = isNaN(gpaValue) ? 0 : gpaValue;
-  }
-});
-// Build total grades map with lowercase keys
-const totalGradesMap = {};
-gpaData.forEach(row => {
-  const profName = row.name || row.Name || row.professor || row.Professor;
-  if (profName) {
-    const key = profName.trim().toLowerCase();
-    totalGradesMap[key] = row.total_grades != null ? +row.total_grades : 0;
-  }
-});
-window.totalGradesMap = totalGradesMap;
-window.maxTotalGrades = d3.max(Object.values(totalGradesMap)) || 0;
-renderProfComparison(currentInstructors);
+            avgGpaMap[key] = isNaN(gpaValue) ? 0 : gpaValue;
+   }
+ });
+ // Build total grades map with lowercase keys
+ const totalGradesMap = {};
+ gpaData.forEach(row => {
+   const profName = row.name || row.Name || row.professor || row.Professor;
+   if (profName) {
+     const key = profName.trim().toLowerCase();
+     totalGradesMap[key] = row.total_grades != null ? +row.total_grades : 0;
+   }
+ });
+ window.totalGradesMap = totalGradesMap;
+ window.maxTotalGrades = d3.max(Object.values(totalGradesMap)) || 0;
+ renderProfComparison(currentInstructors);
 }).catch(err => console.error("Error loading professor data:", err));
     function loadSections(courseId) {
   const semester = termSelect.value === "Spring 2025" ? "202501" : "202508";
@@ -1674,14 +2215,13 @@ renderProfComparison(currentInstructors);
       sec.profList = sec.instructors.length
         ? sec.instructors.join(', ')
         : 'TBA';
-      console.log("Section instructors:", sec.instructors);
 
-      // collect each prof’s average_rating (0 if unknown), case-insensitive match
+      // collect each prof's average_rating (0 if unknown)
       const ratings = sec.instructors.map(name => {
         const key = name.trim().toLowerCase();
-        const prof = professorData.find(p =>
-          p.name && p.name.trim().toLowerCase() === key
-        );
+         const prof = professorData.find(p =>
+           p.name && p.name.trim().toLowerCase() === key
+         );
         return prof ? +prof.average_rating : 0;
       });
       // average (or 0 if none)
@@ -1695,7 +2235,7 @@ renderProfComparison(currentInstructors);
       if (b.sectionRating !== a.sectionRating) {
         return b.sectionRating - a.sectionRating;
       }
-      // fallback to numeric sort on the 4-digit part of “ENGL101-0201”
+      // fallback to numeric sort on the 4-digit part of "ENGL101-0201"
       const getNum = s => +(s.section_id.split('-')[1] || 0);
       return getNum(a) - getNum(b);
     });
@@ -1703,22 +2243,21 @@ renderProfComparison(currentInstructors);
     // 3. Populate the <select>
     sectionSelect.innerHTML = '<option value="">Section</option>';
     sections.forEach(sec => {
-      // Compute instructor initials for this section
-const initials = sec.instructors
-  .map(name => name.trim().split(' ').map(w => w[0]).join(''))
-  .join('/');
-
-const label = sec.section_id.includes('-')
-  ? sec.section_id.split('-')[1]
-  : sec.section_id;
-const opt = document.createElement("option");
-opt.value = sec.section_id;
-const stars = sec.sectionRating
-  ? `⭐${sec.sectionRating.toFixed(1)}`
-  : '';
-// Prefix with initials
-opt.textContent = `${initials} ${label} ${stars}`;
-sectionSelect.appendChild(opt);
+      const initials = sec.instructors
+   .map(name => name.trim().split(' ').map(w => w[0]).join(''))
+   .join('/');
+ 
+ const label = sec.section_id.includes('-')
+   ? sec.section_id.split('-')[1]
+   : sec.section_id;
+ const opt = document.createElement("option");
+ opt.value = sec.section_id;
+ const stars = sec.sectionRating
+   ? `⭐${sec.sectionRating.toFixed(1)}`
+   : '';
+ // Prefix with initials
+ opt.textContent = `${initials} ${label} ${stars}`;
+ sectionSelect.appendChild(opt);
     });
 
     currentSections = sections;
@@ -1728,6 +2267,7 @@ sectionSelect.appendChild(opt);
     );
     // Pre-render professor comparison data for the course
     renderProfComparison(currentInstructors);
+    
   })
     
   .catch(err => console.error("Error loading sections:", err));
@@ -1944,6 +2484,10 @@ sectionSelect.addEventListener("change", () => {
       const courseIcon = getCourseIcon(currentCourseId);
       const meetingsByBuilding = {};
       sectionObj.meetings.forEach(meeting => {
+        // Skip meetings without building or room information
+        if (!meeting.building || !meeting.room || meeting.building.trim() === "" || meeting.room.trim() === "") {
+          return;
+        }
         if (!meetingsByBuilding[meeting.building]) {
           meetingsByBuilding[meeting.building] = [];
         }
@@ -1986,8 +2530,6 @@ sectionSelect.addEventListener("change", () => {
       });
       document.getElementById("scheduleContainer").style.display = "block";
       renderPreviewBlock();
-      // Render prerequisite network for the selected course
-      
     }
   } else {
     removePreviewBlocks();
@@ -2328,7 +2870,7 @@ sectionSelect.addEventListener("change", () => {
       let checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = true;
-      // When checked, update the markers’ z-index to bring them to top.
+      // When checked, update the markers' z-index to bring them to top.
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
           courseLayerGroup.eachLayer(layer => {
@@ -2376,17 +2918,17 @@ sectionSelect.addEventListener("change", () => {
     });
     
     function renderProfComparison(instructors) {
-        // Tooltip container for professor bars
-  const profTooltip = d3.select("body")
-    .append("div")
-    .attr("class", "prof-tooltip")
-    .style("position", "absolute")
-    .style("padding", "6px")
-    .style("background", "rgba(0, 0, 0, 0.7)")
-    .style("color", "#fff")
-    .style("border-radius", "4px")
-    .style("pointer-events", "none")
-    .style("opacity", 0);
+
+      const profTooltip = d3.select("body")
+     .append("div")
+     .attr("class", "prof-tooltip")
+     .style("position", "absolute")
+     .style("padding", "6px")
+     .style("background", "rgba(0, 0, 0, 0.7)")
+     .style("color", "#fff")
+     .style("border-radius", "4px")
+     .style("pointer-events", "none")
+     .style("opacity", 0);
   // Clear previous
   const container = d3.select("#profChart");
   container.selectAll("*").remove();
@@ -2404,36 +2946,34 @@ sectionSelect.addEventListener("change", () => {
 
   // Build data array of {name, rating, gpa}
   const data = instructors.map(rawName => {
-    const nameKey = rawName.trim().toLowerCase();
-  // Compute initials
-  const initials = rawName.trim().split(' ').map(w => w[0]).join('');
-  const prof = professorData.find(p => p.name.trim().toLowerCase() === nameKey);
-  return { 
-    name: rawName,
-    initials: initials,
-    rating: prof ? +prof.average_rating : 0,
-  gpa: avgGpaMap[nameKey] || 0,
-  total: window.totalGradesMap[nameKey] || 0,
-  reviewsCount: prof ? prof.reviews.length : 0
-};
+     const nameKey = rawName.trim().toLowerCase();
+   // Compute initials
+   const initials = rawName.trim().split(' ').map(w => w[0]).join('');
+   const prof = professorData.find(p => p.name.trim().toLowerCase() === nameKey);
+   return { 
+     name: rawName,
+     initials: initials,
+     rating: prof ? +prof.average_rating : 0,
+   gpa: avgGpaMap[nameKey] || 0,
+   total: window.totalGradesMap[nameKey] || 0,
+   reviewsCount: prof ? prof.reviews.length : 0
+ }; 
   });
-
   // Opacity scale based on total grades reported among displayed instructors
-  // separate opacity scales
-const reviewCounts = data.map(d => d.reviewsCount);
-const [minRev, maxRev] = d3.extent(reviewCounts);
-console.log("minRev, maxRev", minRev, maxRev);
-const reviewOpacityScale = d3.scaleLinear()
-  .domain([minRev === maxRev ? 0 : minRev, maxRev])
-  .range([0.3, 1]);
-
-const gradeCounts = data.map(d => d.total);
-
-const [minGrade, maxGrade] = d3.extent(gradeCounts);
-console.log("minGrade, maxGrade", minGrade, maxGrade);
-const gradeOpacityScale = d3.scaleLinear()
-  .domain([minGrade === maxGrade ? 0 : minGrade, maxGrade])
-  .range([0.3, 1]);
+  const reviewCounts = data.map(d => d.reviewsCount);
+ const [minRev, maxRev] = d3.extent(reviewCounts);
+ console.log("minRev, maxRev", minRev, maxRev);
+ const reviewOpacityScale = d3.scaleLinear()
+   .domain([minRev === maxRev ? 0 : minRev, maxRev])
+   .range([0.3, 1]);
+ 
+ const gradeCounts = data.map(d => d.total);
+ 
+ const [minGrade, maxGrade] = d3.extent(gradeCounts);
+ console.log("minGrade, maxGrade", minGrade, maxGrade);
+ const gradeOpacityScale = d3.scaleLinear()
+   .domain([minGrade === maxGrade ? 0 : minGrade, maxGrade])
+   .range([0.3, 1]);
 
   // X and Y scales
   const x = d3.scaleBand()
@@ -2455,23 +2995,21 @@ const gradeOpacityScale = d3.scaleLinear()
       .attr("height", d => height - y(d.rating))
       .attr("fill", "#e21833")  // UMD red
       .attr("fill-opacity", d => reviewOpacityScale(d.reviewsCount))
-      .on("mouseover", (event, d) => {
-        profTooltip
-          .html(
-            `Instructor: <strong>${d.initials}</strong><br/>
-             Avg Rating: <strong>${d.rating.toFixed(1)}</strong><br/>
-             Reviews: <strong>${d.reviewsCount}</strong>`
-          )
-          .style("left",  (event.pageX + 10) + "px")
-          .style("top",   (event.pageY - 25) + "px")
-          .transition().duration(100)
-          .style("opacity", 0.9);
-      })
-      .on("mouseout", () => {
-        profTooltip.transition().duration(200).style("opacity", 0);
-      });
-
-
+       .on("mouseover", (event, d) => {
+         profTooltip
+           .html(
+             `Instructor: <strong>${d.initials}</strong><br/>
+              Avg Rating: <strong>${d.rating.toFixed(1)}</strong><br/>
+              Reviews: <strong>${d.reviewsCount}</strong>`
+           )
+           .style("left",  (event.pageX + 10) + "px")
+           .style("top",   (event.pageY - 25) + "px")
+           .transition().duration(100)
+           .style("opacity", 0.9);
+       })
+       .on("mouseout", () => {
+         profTooltip.transition().duration(200).style("opacity", 0);
+       });
   // Draw GPA bars (right half)
   svg.selectAll(".bar-gpa")
     .data(data)
@@ -2483,21 +3021,21 @@ const gradeOpacityScale = d3.scaleLinear()
       .attr("height", d => height - y(d.gpa))
       .attr("fill", "#FFD326")  // UMD yellow
       .attr("fill-opacity", d => gradeOpacityScale(d.total))
-      .on("mouseover", (event, d) => {
-        profTooltip
-          .html(
-            `Instructor: <strong>${d.initials}</strong><br/>
-             Avg GPA: <strong>${d.gpa.toFixed(2)}</strong><br/>
-             Grades Reported: <strong>${d.total}</strong>`
-          )
-          .style("left",  (event.pageX + 10) + "px")
-          .style("top",   (event.pageY - 25) + "px")
-          .transition().duration(100)
-          .style("opacity", 0.9);
-      })
-      .on("mouseout", () => {
-        profTooltip.transition().duration(200).style("opacity", 0);
-      });
+       .on("mouseover", (event, d) => {
+         profTooltip
+           .html(
+             `Instructor: <strong>${d.initials}</strong><br/>
+              Avg GPA: <strong>${d.gpa.toFixed(2)}</strong><br/>
+              Grades Reported: <strong>${d.total}</strong>`
+           )
+           .style("left",  (event.pageX + 10) + "px")
+           .style("top",   (event.pageY - 25) + "px")
+           .transition().duration(100)
+           .style("opacity", 0.9);
+       })
+       .on("mouseout", () => {
+         profTooltip.transition().duration(200).style("opacity", 0);
+       });
 
   // X-axis + label with tick rotation
   svg.append("g")
@@ -2548,7 +3086,7 @@ const gradeOpacityScale = d3.scaleLinear()
     .attr("stroke", "#e21833")
     .attr("stroke-dasharray", "4,4");
 
-  // Custom labels at y=5 (“Rating”) and y=4 (“GPA”)
+  // Custom labels at y=5 ("Rating") and y=4 ("GPA")
   [{v:5,l:"Rating"},{v:4,l:"GPA"}].forEach(d => {
     svg.append("text")
       .attr("x",-20)
@@ -2743,6 +3281,7 @@ trendLine
       document.getElementById('prereqToggle').classList.remove('selected');
       document.getElementById('difficultyToggle').classList.remove('selected');
       renderProfComparison(currentInstructors);
+
     });
 
     document.getElementById('difficultyToggle').addEventListener('click', () => {
@@ -2752,6 +3291,7 @@ trendLine
       document.getElementById('difficultyToggle').classList.add('selected');
       document.getElementById('prereqToggle').classList.remove('selected');
       document.getElementById('profToggle').classList.remove('selected');
+      // TODO: renderDifficultyPlot();
     });
 
     // Draggable containers
@@ -2785,6 +3325,7 @@ trendLine
     makeDraggable(document.getElementById("scheduleContainer"));
     makeDraggable(document.getElementById("routeContainer"));
     makeDraggable(document.getElementById("busRoutesContainer"));
+    makeDraggable(document.getElementById("ridgelineContainer"));
 
 document.getElementById("closeBusRoutes").addEventListener("click", () => {
   document.getElementById("busRoutesContainer").style.display = "none";
