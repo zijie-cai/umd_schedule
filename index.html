@@ -1980,7 +1980,7 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
         // Set up dimensions
         const margin = {top: 40, right: 120, bottom: 40, left: 60};
         const width = 450;
-        const height = 300;
+        const height = 400;
 
         // Create SVG
         const svg = d3.select('#ridgelinePlot')
@@ -2008,7 +2008,7 @@ console.log("Bus stops mapping loaded:", busStopsMapping);
 
         const y = d3.scalePoint()
           .domain(['F', 'Th', 'W', 'Tu', 'M'])
-          .range([height - 40, 40]) // Adjust range to allow for overlap
+          .range([height - 40, 40])
           .padding(0.5);
 
         // Create ticks at every hour from 7am to 9pm
