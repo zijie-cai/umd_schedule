@@ -2522,7 +2522,9 @@ sectionSelect.addEventListener("change", () => {
               .bindPopup(popupContent)
               .on('click', function(e) {
                 markerRouteSelectHandler(e);
-                highlightNearestRouteTo(e.latlng);
+                if (window.showBusStops) {
+                  highlightNearestRouteTo(e.latlng);
+                }
                 this.openPopup();
               });
           });
