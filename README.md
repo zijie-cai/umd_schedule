@@ -3,7 +3,7 @@
 📍 Interactive visualization tool to help UMD students plan class schedules and commutes using data from UMD.io and PlanetTerp.
 
 🔗 **Live Demo:** [zijie-cai.github.io/umd_schedule](https://zijie-cai.github.io/umd_schedule)  
-🎥 **Demo Video:** [Watch Demo]([https://www.youtube.com/watch?v=5BRXPktydIY)
+🎥 **Demo Video:** [Watch Demo](https://www.youtube.com/watch?v=5BRXPktydIY)
 
 ## Features
 
@@ -21,6 +21,6 @@
 
 ## Team
 
-Zijie Cai  
+- Zijie Cai  
 - Tianfu Wang
 - Haoming Cai  
